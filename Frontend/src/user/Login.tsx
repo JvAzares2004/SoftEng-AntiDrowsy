@@ -42,7 +42,7 @@ function Login() {
                     </div>
 
                     {/* Sign In Button */}
-                    <button onClick={() => navigate("/user")} className="bg-white text-black border font-bold text-lg w-full py-3 rounded-lg mt-2">Sign In</button>
+                    <button onClick={() => navigate("/user/dashboard")} className="bg-white text-black border font-bold text-lg w-full py-3 rounded-lg mt-2">Sign In</button>
                 </div>
             </div>
         </div>
