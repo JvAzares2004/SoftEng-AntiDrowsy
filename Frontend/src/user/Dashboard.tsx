@@ -17,6 +17,10 @@ function Dashboard() {
         newVolumes[index].volume = newValue;
         setVolumes(newVolumes);
     }
+
+    const handleTest = (index: number) => {
+        console.log(`${volumes[index].name}: ${volumes[index].volume}%`);
+    }
     return (
         <div>
             <div className={`bg-[#C52233] px-8 py-4 min-h-30 md:rounded-lg flex justify-between items-end`}>
@@ -55,7 +59,10 @@ function Dashboard() {
                                 <span className="text-sm text-black rounded-md bg-[#B5B4B4] p-2">{vol.volume}%</span>
                             </div>
                             
-                            <button className="bg-[#F5E2E4] border rounded-lg flex flex-row items-center justify-center p-3">
+                            <button 
+                                onClick={() => handleTest(index)}
+                                className="bg-[#F5E2E4] border rounded-lg flex flex-row items-center justify-center p-3 cursor-pointer"
+                            >
                                 <PlayIcon />
                                 <h1>Test</h1>
                             </button>
