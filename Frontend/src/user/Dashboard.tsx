@@ -100,7 +100,7 @@ function Dashboard() {
                     </div>
 
                     {/* System Status (Micro Controller, Alert Modules and Camera) */}
-                    {systemStatus.map((stat, index) => {
+                    {systemStatus.map((stat) => {
                         const Icon = stat.icon;
 
                         return (
