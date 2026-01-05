@@ -1,8 +1,8 @@
 
 import { useState, useRef, useEffect } from 'react'
-import SettingIcon from '../component/svg/Setting'
 import MotorVolumeIcon from '../component/svg/MotorVolumeIcon'
 import BuzzerIcon from '../component/svg/BuzzerIcon'
+import BurgerIcon from '../component/svg/BurgerIcon'
 
 import PlayIcon from '../component/svg/PlayerIcon'
 import FullscreenIcon from '../component/svg/FullscreenIcon'
@@ -12,8 +12,11 @@ import SystemStatusIcon from '../component/svg/SystemStatusIcon'
 import MicroControllerIcon from '../component/svg/MicroControllerIcon'
 import AlertModuleIcon from '../component/svg/AlertModule'
 import PlainCameraIcon from '../component/svg/PlainCameraIcon'
+import { useSidebar } from './MainLayout'
 
 function Dashboard() {
+    const { toggleSidebar } = useSidebar()
+    
     const [volumes, setVolumes] = useState([
         { type:"motor", name: "Motor Vibration", volume: 100, icon: MotorVolumeIcon },
         { type:"buzzer", name: "Buzzer Volume", volume: 100, icon: BuzzerIcon },
@@ -137,25 +140,29 @@ function Dashboard() {
             }
         }
     }
+
     return (
         <div>
-            <div className={`bg-[#C52233] px-8 py-4 min-h-30 md:rounded-lg flex justify-between items-end`}>
+            <div className={`sticky top-0 z-40 bg-[#C52233] px-8 py-4 min-h-30 md:rounded-lg flex justify-between items-end`}>
                 <div className="text-white inter">
                     <h1 className="tracking-wide text-2xl font-semibold">Welcome, User</h1>
                     <span className="text-sm font-light tracking-wide">Stay alert, drive safe</span>
                 </div>
-
-                <div className="flex mb-7 mr-5">
-                    <SettingIcon className="text-white"/>
-                </div>
+                
+                <button 
+                    onClick={toggleSidebar}
+                    className="flex mb-7 mr-5 hover:scale-110 transition-transform cursor-pointer md:hidden"
+                >
+                    <BurgerIcon className="text-white"/>
+                </button>
             </div>
 
             <div className="flex flex-col gap-6 mt-10 p-4">
                 {volumes.map((vol, index) => {
                     const Icon = vol.icon;
                     return (
-                        <div key={index} className="flex flex-col p-7 border rounded-xl gap-5">
-                            <div className="flex flex-row gap-3">
+                        <div key={index} className="flex flex-col p-7 border rounded-xl gap-5 bg-white">
+                            <div className="flex flex-row gap-3 ">
                                 <Icon className="text-black" />
                                 {vol.name}
                             </div>
@@ -177,7 +184,7 @@ function Dashboard() {
                             
                             <button 
                                 onClick={() => handleTest(index)}
-                                className="bg-[#F5E2E4] border rounded-lg flex flex-row items-center justify-center p-3 cursor-pointer"
+                                className="bg-red border rounded-lg flex flex-row items-center justify-center p-3 cursor-pointer"
                             >
                                 <PlayIcon />
                                 <h1>Test</h1>
