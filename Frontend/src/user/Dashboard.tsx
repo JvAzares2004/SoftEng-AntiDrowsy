@@ -188,7 +188,7 @@ function Dashboard() {
                     
                 <div 
                     ref={cameraContainerRef}
-                    className="camera-container flex flex-col border rounded-xl overflow-hidden bg-black"
+                    className="camera-container flex flex-col border rounded-xl overflow-hidden bg-black relative"
                 >
                     <div className="camera-controls flex flex-row w-full justify-between p-3 bg-gray-900">
                         <h1 className="font-semibold text-white">Camera Field</h1>
@@ -200,6 +200,13 @@ function Dashboard() {
                             <FullscreenIcon className="text-white" />
                         </button>
                     </div>
+                    <button 
+                        onClick={handleFullscreen}
+                        className="fullscreen-button hover:scale-110 transition-transform cursor-pointer"
+                        aria-label="Exit fullscreen"
+                    >
+                        <FullscreenIcon className="text-white" />
+                    </button>
                     <div className="relative w-full bg-black" style={{ minHeight: '400px' }}>
                         <video 
                             ref={videoRef}
