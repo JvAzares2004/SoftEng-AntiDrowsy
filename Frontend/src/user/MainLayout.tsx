@@ -20,16 +20,26 @@ export const useSidebar = () => {
 
 const MainLayout: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
     const navigate = useNavigate();
 
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
     };
 
-    const handleLogout = () => {
+    const handleLogoutClick = () => {
+        setShowLogoutModal(true);
+    };
+
+    const confirmLogout = () => {
         // Add any logout logic here (clear tokens, etc.)
+        setShowLogoutModal(false);
         setIsSidebarOpen(false);
         navigate('/user/login');
+    };
+
+    const cancelLogout = () => {
+        setShowLogoutModal(false);
     };
 
     return (
@@ -91,12 +101,21 @@ const MainLayout: React.FC = () => {
                             Settings
                         </NavLink>
                         
-                        <a href="#" onClick={() => setIsSidebarOpen(false)} className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                        <NavLink 
+                            to="user-manual"
+                            onClick={() => setIsSidebarOpen(false)}
+                            className={({ isActive }) =>
+                                `block py-2 px-4 rounded-lg transition-colors
+                                ${isActive 
+                                ? "bg-gray-100 text-gray-900 font-semibold" 
+                                : "text-gray-700 hover:bg-gray-100"}`
+                            }
+                        >
                             User Manual
-                        </a>
+                        </NavLink>
                         
                         <button 
-                            onClick={handleLogout} 
+                            onClick={handleLogoutClick} 
                             className="block w-full text-left py-2 px-4 text-gray-700 hover:bg-red-500 hover:text-white rounded-lg transition-colors cursor-pointer"
                         >
                             Logout
@@ -110,6 +129,30 @@ const MainLayout: React.FC = () => {
                 {/* Outlet renders the nested route here */}
                 <Outlet />
             </main>
+
+            {/* Logout Confirmation Modal */}
+            {showLogoutModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
+                        <h2 className="text-xl font-bold text-gray-900 mb-4">Confirm Logout</h2>
+                        <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
+                        <div className="flex justify-end space-x-3">
+                            <button
+                                onClick={cancelLogout}
+                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmLogout}
+                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors cursor-pointer"
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
         </SidebarContext.Provider>
     );

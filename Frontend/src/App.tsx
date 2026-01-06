@@ -3,6 +3,7 @@ import Login from './user/Login';
 import Dashboard from './user/Dashboard';
 import MainLayout from './user/MainLayout';
 import Settings from './user/Settings';
+import UserManual from './user/UserManual';
 import './App.css';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
         <Route path="/user" element={<MainLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="user-manual" element={<UserManual />} />
           {/* Add more nested routes here, e.g., settings */}
         </Route>
       </Routes>
