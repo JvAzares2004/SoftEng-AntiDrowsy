@@ -9,6 +9,7 @@ function Settings() {
   const [wifiSSID, setWifiSSID] = useState('')
   const [wifiPassword, setWifiPassword] = useState('')
   const [showWifiPassword, setShowWifiPassword] = useState(false)
+  const [wifiPasswordError, setWifiPasswordError] = useState('')
   
   // User account state
   const [username, setUsername] = useState('')
@@ -18,9 +19,73 @@ function Settings() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [newPasswordError, setNewPasswordError] = useState('')
+
+  // Password criteria checking function
+  const checkPasswordCriteria = (password: string) => {
+    return {
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+    }
+  }
+
+  // Get criteria status for WiFi password
+  const wifiCriteria = checkPasswordCriteria(wifiPassword)
+  
+  // Get criteria status for new password
+  const newPasswordCriteria = checkPasswordCriteria(newPassword)
+
+  // Password validation function
+  const validatePassword = (password: string): { isValid: boolean; error: string } => {
+    const criteria = checkPasswordCriteria(password)
+
+    if (!criteria.hasUppercase) {
+      return { isValid: false, error: 'Password must contain at least one uppercase letter' }
+    }
+    if (!criteria.hasLowercase) {
+      return { isValid: false, error: 'Password must contain at least one lowercase letter' }
+    }
+    if (!criteria.hasNumber) {
+      return { isValid: false, error: 'Password must contain at least one number' }
+    }
+    if (!criteria.hasSpecialChar) {
+      return { isValid: false, error: 'Password must contain at least one special character' }
+    }
+
+    return { isValid: true, error: '' }
+  }
+
+  // Password criteria component
+  const PasswordCriteriaList = ({ criteria }: { criteria: ReturnType<typeof checkPasswordCriteria> }) => (
+    <div className="mt-2 space-y-1">
+      <p className={`text-xs ${criteria.hasUppercase ? 'text-green-600' : 'text-red-600'}`}>
+        {criteria.hasUppercase ? '✓' : '✗'} At least one uppercase letter
+      </p>
+      <p className={`text-xs ${criteria.hasLowercase ? 'text-green-600' : 'text-red-600'}`}>
+        {criteria.hasLowercase ? '✓' : '✗'} At least one lowercase letter
+      </p>
+      <p className={`text-xs ${criteria.hasNumber ? 'text-green-600' : 'text-red-600'}`}>
+        {criteria.hasNumber ? '✓' : '✗'} At least one number
+      </p>
+      <p className={`text-xs ${criteria.hasSpecialChar ? 'text-green-600' : 'text-red-600'}`}>
+        {criteria.hasSpecialChar ? '✓' : '✗'} At least one special character
+      </p>
+    </div>
+  )
 
   const handleWifiUpdate = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate WiFi password
+    const validation = validatePassword(wifiPassword)
+    if (!validation.isValid) {
+      setWifiPasswordError(validation.error)
+      return
+    }
+    
+    setWifiPasswordError('')
     console.log('WiFi Settings Updated:', { wifiSSID, wifiPassword })
     // Add your WiFi update logic here
     alert('WiFi settings updated successfully!')
@@ -28,10 +93,20 @@ function Settings() {
 
   const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault()
-    if (newPassword !== confirmPassword) {
-      alert('New passwords do not match!')
+    
+    // Validate new password
+    const validation = validatePassword(newPassword)
+    if (!validation.isValid) {
+      setNewPasswordError(validation.error)
       return
     }
+    
+    if (newPassword !== confirmPassword) {
+      setNewPasswordError('New passwords do not match!')
+      return
+    }
+    
+    setNewPasswordError('')
     console.log('Password Changed:', { username, currentPassword, newPassword })
     // Add your password change logic here
     alert('Password changed successfully!')
@@ -87,7 +162,10 @@ function Settings() {
                   type={showWifiPassword ? "text" : "password"}
                   id="wifi-password"
                   value={wifiPassword}
-                  onChange={(e) => setWifiPassword(e.target.value)}
+                  onChange={(e) => {
+                    setWifiPassword(e.target.value)
+                    setWifiPasswordError('')
+                  }}
                   placeholder="Enter WiFi password"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C52233] focus:border-transparent"
                   required
@@ -100,6 +178,10 @@ function Settings() {
                   {showWifiPassword ? "Hide" : "Show"}
                 </button>
               </div>
+              {wifiPasswordError && (
+                <p className="text-red-600 text-sm mt-1">{wifiPasswordError}</p>
+              )}
+              {wifiPassword && <PasswordCriteriaList criteria={wifiCriteria} />}
             </div>
 
             <button
@@ -165,7 +247,10 @@ function Settings() {
                   type={showNewPassword ? "text" : "password"}
                   id="new-password"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value)
+                    setNewPasswordError('')
+                  }}
                   placeholder="Enter new password"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C52233] focus:border-transparent"
                   required
@@ -178,6 +263,10 @@ function Settings() {
                   {showNewPassword ? "Hide" : "Show"}
                 </button>
               </div>
+              {newPasswordError && (
+                <p className="text-red-600 text-sm mt-1">{newPasswordError}</p>
+              )}
+              {newPassword && <PasswordCriteriaList criteria={newPasswordCriteria} />}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -189,7 +278,10 @@ function Settings() {
                   type={showConfirmPassword ? "text" : "password"}
                   id="confirm-password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value)
+                    setNewPasswordError('')
+                  }}
                   placeholder="Confirm new password"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C52233] focus:border-transparent"
                   required
