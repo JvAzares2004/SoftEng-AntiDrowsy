@@ -144,17 +144,17 @@ function Dashboard() {
     return (
         <div>
             <div className={`sticky top-0 z-40 bg-[#C52233] px-8 py-4 min-h-30 md:rounded-lg flex justify-between items-end`}>
-                <div className="text-white inter">
-                    <h1 className="tracking-wide text-2xl font-semibold">Welcome, User</h1>
-                    <span className="text-sm font-light tracking-wide">Stay alert, drive safe</span>
-                </div>
-                
                 <button 
                     onClick={toggleSidebar}
-                    className="flex mb-7 mr-5 hover:scale-110 transition-transform cursor-pointer md:hidden"
+                    className="flex mb-7 ml-0 hover:scale-110 transition-transform cursor-pointer md:hidden"
                 >
                     <BurgerIcon className="text-white"/>
                 </button>
+                
+                <div className="text-white inter mr-auto md:mr-0 ml-4 md:ml-0">
+                    <h1 className="tracking-wide text-2xl font-semibold">Welcome, User</h1>
+                    <span className="text-sm font-light tracking-wide">Stay alert, drive safe</span>
+                </div>
             </div>
 
             <div className="flex flex-col gap-6 mt-10 p-4">
