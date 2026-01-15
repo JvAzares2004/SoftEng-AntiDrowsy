@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import BurgerIcon from '../component/svg/BurgerIcon'
 import { useSidebar } from './MainLayout'
+import authService from '../services/authService'
 
 function Settings() {
   const { toggleSidebar } = useSidebar()
@@ -106,13 +107,23 @@ function Settings() {
       return
     }
     
-    setNewPasswordError('')
-    console.log('Password Changed:', { username, currentPassword, newPassword })
-    // Add your password change logic here
-    alert('Password changed successfully!')
-    setCurrentPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
+    // Use authService to change password on ESP32
+    authService.changePassword(currentPassword, newPassword)
+      .then((result) => {
+        if (result.success) {
+          setNewPasswordError('')
+          alert('Password changed successfully!')
+          setCurrentPassword('')
+          setNewPassword('')
+          setConfirmPassword('')
+        } else {
+          setNewPasswordError(result.message || 'Failed to change password')
+        }
+      })
+      .catch((error) => {
+        console.error('Error changing password:', error)
+        setNewPasswordError('An error occurred while changing password')
+      })
   }
 
   return (

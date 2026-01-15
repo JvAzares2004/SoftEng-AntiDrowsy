@@ -1,5 +1,6 @@
 import React, { useState, createContext, useContext } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import authService from '../services/authService';
 
 import Drowsiness_Logo from '../component/img/Drowsiness-Logo.png';
 
@@ -22,6 +23,7 @@ const MainLayout: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const navigate = useNavigate();
+    const currentUser = authService.getCurrentUser();
 
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
@@ -31,8 +33,8 @@ const MainLayout: React.FC = () => {
         setShowLogoutModal(true);
     };
 
-    const confirmLogout = () => {
-        // Add any logout logic here (clear tokens, etc.)
+    const confirmLogout = async () => {
+        await authService.logout();
         setShowLogoutModal(false);
         setIsSidebarOpen(false);
         navigate('/user/login');
@@ -70,6 +72,21 @@ const MainLayout: React.FC = () => {
                 </div>
                 
                 <div className="p-2">
+                    {/* User Info Section */}
+                    {currentUser && (
+                        <div className="mb-6 p-3 bg-gray-100 rounded-lg">
+                            <div className="flex items-center gap-2">
+                                <div className="w-10 h-10 bg-[#C52233] rounded-full flex items-center justify-center text-white font-bold">
+                                    {currentUser.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-gray-800">{currentUser}</p>
+                                    <p className="text-xs text-gray-600">Logged In</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
                     <div className="mb-8">
                         <h2 className="text-xl font-bold text-gray-800">Menu</h2>
                     </div>
