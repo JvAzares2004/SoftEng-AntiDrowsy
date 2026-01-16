@@ -181,7 +181,7 @@ function Dashboard() {
                             <Icon className="w-6 h-6" />
                             </div>
                                 <span className="text-xl font-semibold text-slate-800">{vol.name}</span>
-                            </div>
+                        </div>
 
                             {/* Risk Matrix Bar */}
                             <div className="flex h-12 rounded-xl overflow-hidden border-2 border-slate-300 shadow-sm">
