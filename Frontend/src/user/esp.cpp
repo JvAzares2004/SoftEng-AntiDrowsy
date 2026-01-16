@@ -113,6 +113,7 @@ void loop() {
     previousTime = currentTime;
     Serial.println("New Client Connected");
     String currentLine = "";
+    bool headersEnded = false;
 
     while (client.connected() && currentTime - previousTime <= timeoutTime) {
       currentTime = millis();
@@ -123,6 +124,16 @@ void loop() {
 
         if (c == '\n') {
           if (currentLine.length() == 0) {
+            headersEnded = true;
+            
+            // For POST requests, continue reading to get the body
+            if (header.indexOf("POST") >= 0) {
+              // Wait a bit for the body to arrive
+              delay(10);
+              while (client.available()) {
+                header += (char)client.read();
+              }
+            }
 
             // ===== AUTHENTICATION ENDPOINTS =====
             // Login endpoint
@@ -134,8 +145,15 @@ void loop() {
                 String username = extractParam(body, "username");
                 String password = extractParam(body, "password");
                 
-                Serial.println("Login attempt:");
-                Serial.println("Username: " + username);
+                Serial.println("========== Login Attempt ==========");
+                Serial.println("Raw Body: " + body);
+                Serial.println("Extracted Username: '" + username + "'");
+                Serial.println("Extracted Password: '" + password + "'");
+                Serial.println("Expected Username: '" + currentUsername + "'");
+                Serial.println("Expected Password: '" + currentPassword + "'");
+                Serial.println("Username Match: " + String(username == currentUsername));
+                Serial.println("Password Match: " + String(password == currentPassword));
+                Serial.println("===================================");
                 
                 if (username == currentUsername && password == currentPassword) {
                   isAuthenticated = true;

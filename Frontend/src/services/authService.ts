@@ -3,6 +3,16 @@
 const ESP32_IP = '192.168.4.1'; // Default ESP32 AP IP address
 const API_BASE_URL = `http://${ESP32_IP}`;
 
+// Development mode - set to true to use mock authentication (for testing without ESP32)
+// Set to false when connected to ESP32 WiFi network
+const DEV_MODE = false;
+
+// Mock credentials for development (matches ESP32 credentials)
+const MOCK_CREDENTIALS = {
+  username: 'admin',
+  password: 'Admin@123'
+};
+
 export interface LoginResponse {
   success: boolean;
   message: string;
@@ -38,16 +48,54 @@ class AuthService {
   }
 
   async login(username: string, password: string): Promise<LoginResponse> {
+    // Development mode - use mock authentication
+    if (DEV_MODE) {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      if (username === MOCK_CREDENTIALS.username && password === MOCK_CREDENTIALS.password) {
+        this.isLoggedIn = true;
+        this.currentUser = username;
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('currentUser', this.currentUser);
+        localStorage.setItem('lastActivity', Date.now().toString());
+        
+        return {
+          success: true,
+          message: 'Login successful (Development Mode)',
+          user: username
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Invalid username or password. Try admin/admin123',
+        };
+      }
+    }
+
+    // Production mode - connect to ESP32
     try {
+      const body = `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+      
+      console.log('Sending login request to:', `${API_BASE_URL}/api/login`);
+      console.log('Request body:', body);
+      console.log('Username:', username);
+      console.log('Password:', password);
+      
       const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': body.length.toString(),
         },
-        body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
+        body: body,
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
       const data: LoginResponse = await response.json();
+      console.log('Response data:', data);
 
       if (data.success) {
         this.isLoggedIn = true;
