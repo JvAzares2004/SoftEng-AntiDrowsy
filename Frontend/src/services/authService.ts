@@ -5,7 +5,7 @@ const API_BASE_URL = `http://${ESP32_IP}`;
 
 // Development mode - set to true to use mock authentication (for testing without ESP32)
 // Set to false when connected to ESP32 WiFi network
-const DEV_MODE = false;
+const DEV_MODE = true;
 
 // Mock credentials for development (matches ESP32 credentials)
 const MOCK_CREDENTIALS = {
@@ -68,7 +68,7 @@ class AuthService {
       } else {
         return {
           success: false,
-          message: 'Invalid username or password. Try admin/admin123',
+          message: 'Invalid username or password. Try admin/Admin@123',
         };
       }
     }

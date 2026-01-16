@@ -13,6 +13,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
+      // DEVELOPMENT MODE: Skip authentication check
+      // Set to false to re-enable authentication
+      const SKIP_AUTH = true;
+      
+      if (SKIP_AUTH) {
+        setIsAuthenticated(true);
+        setIsChecking(false);
+        return;
+      }
+
       // Check for session timeout
       if (authService.checkSessionTimeout()) {
         setIsAuthenticated(false);
