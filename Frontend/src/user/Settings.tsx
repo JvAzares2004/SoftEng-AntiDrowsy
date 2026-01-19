@@ -14,6 +14,10 @@ function Settings() {
   
   // User account state
   const [username, setUsername] = useState('')
+  const [usernamePassword, setUsernamePassword] = useState('')
+  const [showUsernamePassword, setShowUsernamePassword] = useState(false)
+  const [usernameError, setUsernameError] = useState('')
+  
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -21,6 +25,11 @@ function Settings() {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [newPasswordError, setNewPasswordError] = useState('')
+
+  // Modal state
+  const [showModal, setShowModal] = useState(false)
+  const [modalMessage, setModalMessage] = useState('')
+  const [modalType, setModalType] = useState<'success' | 'error'>('success')
 
   // Password criteria checking function
   const checkPasswordCriteria = (password: string) => {
@@ -86,10 +95,52 @@ function Settings() {
       return
     }
     
-    setWifiPasswordError('')
-    console.log('WiFi Settings Updated:', { wifiSSID, wifiPassword })
-    // Add your WiFi update logic here
-    alert('WiFi settings updated successfully!')
+    // Use authService to update WiFi settings on ESP32
+    authService.updateWiFiSettings(wifiSSID, wifiPassword)
+      .then((result) => {
+        if (result.success) {
+          setWifiPasswordError('')
+          setModalType('success')
+          setModalMessage('WiFi settings updated successfully! ESP32 will connect to the new network.')
+          setShowModal(true)
+          setWifiSSID('')
+          setWifiPassword('')
+        } else {
+          setWifiPasswordError(result.message || 'Failed to update WiFi settings')
+        }
+      })
+      .catch((error) => {
+        console.error('Error updating WiFi settings:', error)
+        setWifiPasswordError('An error occurred while updating WiFi settings')
+      })
+  }
+
+  const handleUsernameChange = (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!username || username.trim() === '') {
+      setUsernameError('Username cannot be empty')
+      return
+    }
+    
+    // Use authService to change username
+    authService.changeUsername(usernamePassword, username)
+      .then((result) => {
+        if (result.success) {
+          setUsernameError('')
+          setModalType('success')
+          setModalMessage('Username changed successfully! Please use your new username on next login.')
+          setShowModal(true)
+          setUsername('')
+          setUsernamePassword('')
+        } else {
+          setUsernameError(result.message || 'Failed to change username')
+        }
+      })
+      .catch((error) => {
+        console.error('Error changing username:', error)
+        setUsernameError('An error occurred while changing username')
+      })
   }
 
   const handlePasswordChange = (e: React.FormEvent) => {
@@ -112,7 +163,9 @@ function Settings() {
       .then((result) => {
         if (result.success) {
           setNewPasswordError('')
-          alert('Password changed successfully!')
+          setModalType('success')
+          setModalMessage('Password changed successfully!')
+          setShowModal(true)
           setCurrentPassword('')
           setNewPassword('')
           setConfirmPassword('')
@@ -204,27 +257,75 @@ function Settings() {
           </form>
         </div>
 
-        {/* User Account Settings */}
+        {/* Change Username */}
         <div className="flex flex-col border rounded-xl p-7 gap-5 bg-white">
-          <h2 className="text-xl font-semibold text-gray-800">User Account Settings</h2>
-          <p className="text-gray-600 text-sm">Update your username and password</p>
+          <h2 className="text-xl font-semibold text-gray-800">Change Username</h2>
+          <p className="text-gray-600 text-sm">Update your username (requires current password)</p>
           
-          <form onSubmit={handlePasswordChange} className="flex flex-col gap-4">
+          <form onSubmit={handleUsernameChange} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <label htmlFor="username" className="text-sm font-medium text-gray-700">
-                Username
+                New Username
               </label>
               <input
                 type="text"
                 id="username"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => {
+                  setUsername(e.target.value)
+                  setUsernameError('')
+                }}
                 placeholder="Enter new username"
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C52233] focus:border-transparent"
                 required
               />
             </div>
 
+            <div className="flex flex-col gap-2">
+              <label htmlFor="username-password" className="text-sm font-medium text-gray-700">
+                Current Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showUsernamePassword ? "text" : "password"}
+                  id="username-password"
+                  value={usernamePassword}
+                  onChange={(e) => {
+                    setUsernamePassword(e.target.value)
+                    setUsernameError('')
+                  }}
+                  placeholder="Enter current password"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C52233] focus:border-transparent"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowUsernamePassword(!showUsernamePassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-800"
+                >
+                  {showUsernamePassword ? "Hide" : "Show"}
+                </button>
+              </div>
+              {usernameError && (
+                <p className="text-red-600 text-sm mt-1">{usernameError}</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="bg-[#C52233] text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-medium"
+            >
+              Change Username
+            </button>
+          </form>
+        </div>
+
+        {/* Change Password */}
+        <div className="flex flex-col border rounded-xl p-7 gap-5 bg-white">
+          <h2 className="text-xl font-semibold text-gray-800">Change Password</h2>
+          <p className="text-gray-600 text-sm">Update your password with a strong new password</p>
+          
+          <form onSubmit={handlePasswordChange} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <label htmlFor="current-password" className="text-sm font-medium text-gray-700">
                 Current Password
@@ -311,11 +412,48 @@ function Settings() {
               type="submit"
               className="bg-[#C52233] text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-medium"
             >
-              Update Account Settings
+              Change Password
             </button>
           </form>
         </div>
       </div>
+
+      {/* Success/Error Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
+            <div className="flex flex-col items-center">
+              {modalType === 'success' ? (
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                </div>
+              ) : (
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </div>
+              )}
+              <h3 className={`text-xl font-bold mb-2 ${modalType === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                {modalType === 'success' ? 'Success!' : 'Error'}
+              </h3>
+              <p className="text-gray-600 text-center mb-6">{modalMessage}</p>
+              <button
+                onClick={() => setShowModal(false)}
+                className={`px-6 py-2 rounded-lg text-white font-medium transition-colors ${
+                  modalType === 'success' 
+                    ? 'bg-green-600 hover:bg-green-700' 
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

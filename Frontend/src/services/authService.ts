@@ -68,7 +68,7 @@ class AuthService {
       } else {
         return {
           success: false,
-          message: 'Invalid username or password. Try admin/Admin@123',
+          message: 'Invalid username or password.',
         };
       }
     }
@@ -116,6 +116,22 @@ class AuthService {
   }
 
   async logout(): Promise<boolean> {
+    // Development mode - just clear local state
+    if (DEV_MODE) {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      this.isLoggedIn = false;
+      this.currentUser = null;
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('lastActivity');
+      localStorage.removeItem('rememberMe');
+
+      return true;
+    }
+
+    // Production mode - communicate with ESP32
     try {
       await fetch(`${API_BASE_URL}/api/logout`, {
         method: 'POST',
@@ -126,6 +142,7 @@ class AuthService {
       localStorage.removeItem('isLoggedIn');
       localStorage.removeItem('currentUser');
       localStorage.removeItem('lastActivity');
+      localStorage.removeItem('rememberMe');
 
       return true;
     } catch (error) {
@@ -133,7 +150,10 @@ class AuthService {
       // Clear local state even if ESP32 request fails
       this.isLoggedIn = false;
       this.currentUser = null;
-      localStorage.clear();
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('lastActivity');
+      localStorage.removeItem('rememberMe');
       return false;
     }
   }
@@ -166,6 +186,27 @@ class AuthService {
   }
 
   async changePassword(currentPassword: string, newPassword: string): Promise<LoginResponse> {
+    // Development mode
+    if (DEV_MODE) {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      if (currentPassword === MOCK_CREDENTIALS.password) {
+        MOCK_CREDENTIALS.password = newPassword;
+        localStorage.setItem('lastActivity', Date.now().toString());
+        return {
+          success: true,
+          message: 'Password changed successfully (Development Mode)'
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Current password is incorrect'
+        };
+      }
+    }
+
+    // Production mode
     try {
       const response = await fetch(`${API_BASE_URL}/api/change-password`, {
         method: 'POST',
@@ -184,6 +225,58 @@ class AuthService {
       return data;
     } catch (error) {
       console.error('Change password error:', error);
+      return {
+        success: false,
+        message: 'Unable to connect to ESP32. Please check your WiFi connection.',
+      };
+    }
+  }
+
+  async changeUsername(currentPassword: string, newUsername: string): Promise<LoginResponse> {
+    // Development mode
+    if (DEV_MODE) {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      if (currentPassword === MOCK_CREDENTIALS.password) {
+        MOCK_CREDENTIALS.username = newUsername;
+        this.currentUser = newUsername;
+        localStorage.setItem('currentUser', newUsername);
+        localStorage.setItem('lastActivity', Date.now().toString());
+        return {
+          success: true,
+          message: 'Username changed successfully (Development Mode)',
+          user: newUsername
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Current password is incorrect'
+        };
+      }
+    }
+
+    // Production mode
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/change-username`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `currentPassword=${encodeURIComponent(currentPassword)}&newUsername=${encodeURIComponent(newUsername)}`,
+      });
+
+      const data: LoginResponse = await response.json();
+      
+      if (data.success && data.user) {
+        this.currentUser = data.user;
+        localStorage.setItem('currentUser', data.user);
+        localStorage.setItem('lastActivity', Date.now().toString());
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Change username error:', error);
       return {
         success: false,
         message: 'Unable to connect to ESP32. Please check your WiFi connection.',
@@ -219,6 +312,46 @@ class AuthService {
   updateActivity(): void {
     if (this.isLoggedIn) {
       localStorage.setItem('lastActivity', Date.now().toString());
+    }
+  }
+
+  async updateWiFiSettings(ssid: string, password: string): Promise<LoginResponse> {
+    // Development mode
+    if (DEV_MODE) {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('WiFi settings updated (Development Mode):', { ssid, password: '***' });
+      localStorage.setItem('lastActivity', Date.now().toString());
+      return {
+        success: true,
+        message: 'WiFi settings updated successfully (Development Mode)'
+      };
+    }
+
+    // Production mode - send to ESP32
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/wifi-config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `ssid=${encodeURIComponent(ssid)}&password=${encodeURIComponent(password)}`,
+      });
+
+      const data: LoginResponse = await response.json();
+      
+      if (data.success) {
+        localStorage.setItem('lastActivity', Date.now().toString());
+      }
+
+      return data;
+    } catch (error) {
+      console.error('WiFi configuration error:', error);
+      return {
+        success: false,
+        message: 'Unable to connect to ESP32. Please check your WiFi connection.',
+      };
     }
   }
 }

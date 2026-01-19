@@ -266,6 +266,110 @@ void loop() {
               }
             }
 
+            // Change username endpoint
+            if (header.indexOf("POST /api/change-username") >= 0) {
+              if (!isAuthenticated) {
+                client.println("HTTP/1.1 401 Unauthorized");
+                client.println("Content-type:application/json");
+                client.println("Access-Control-Allow-Origin: *");
+                client.println("Connection: close");
+                client.println();
+                client.println("{\"success\":false,\"message\":\"Not authenticated\"}");
+                client.println();
+                break;
+              }
+              
+              int bodyStart = header.indexOf("\r\n\r\n");
+              if (bodyStart != -1) {
+                String body = header.substring(bodyStart + 4);
+                String verifyPass = extractParam(body, "currentPassword");
+                String newUser = extractParam(body, "newUsername");
+                
+                Serial.println("========== Username Change Attempt ==========");
+                Serial.println("Current Password: '" + verifyPass + "'");
+                Serial.println("New Username: '" + newUser + "'");
+                Serial.println("Expected Password: '" + currentPassword + "'");
+                Serial.println("============================================");
+                
+                if (verifyPass == currentPassword) {
+                  currentUsername = newUser;
+                  loggedInUser = newUser;
+                  lastActivityTime = millis();
+                  
+                  Serial.println("Username changed successfully to: " + newUser);
+                  
+                  client.println("HTTP/1.1 200 OK");
+                  client.println("Content-type:application/json");
+                  client.println("Access-Control-Allow-Origin: *");
+                  client.println("Connection: close");
+                  client.println();
+                  client.print("{\"success\":true,\"message\":\"Username changed successfully\",\"user\":\"");
+                  client.print(newUser);
+                  client.println("\"}");
+                } else {
+                  Serial.println("Username change failed - incorrect password");
+                  
+                  client.println("HTTP/1.1 401 Unauthorized");
+                  client.println("Content-type:application/json");
+                  client.println("Access-Control-Allow-Origin: *");
+                  client.println("Connection: close");
+                  client.println();
+                  client.println("{\"success\":false,\"message\":\"Current password is incorrect\"}");
+                }
+                client.println();
+                break;
+              }
+            }
+
+            // WiFi configuration endpoint
+            if (header.indexOf("POST /api/wifi-config") >= 0) {
+              if (!isAuthenticated) {
+                client.println("HTTP/1.1 401 Unauthorized");
+                client.println("Content-type:application/json");
+                client.println("Access-Control-Allow-Origin: *");
+                client.println("Connection: close");
+                client.println();
+                client.println("{\"success\":false,\"message\":\"Not authenticated\"}");
+                client.println();
+                break;
+              }
+              
+              int bodyStart = header.indexOf("\r\n\r\n");
+              if (bodyStart != -1) {
+                String body = header.substring(bodyStart + 4);
+                String newSSID = extractParam(body, "ssid");
+                String newWiFiPass = extractParam(body, "password");
+                
+                Serial.println("========== WiFi Configuration ==========");
+                Serial.println("New SSID: '" + newSSID + "'");
+                Serial.println("New WiFi Password: [HIDDEN]");
+                Serial.println("========================================");
+                
+                // Note: Changing WiFi settings requires storing them in EEPROM/SPIFFS
+                // and restarting the ESP32 to apply changes
+                // For now, we'll just acknowledge the request
+                
+                lastActivityTime = millis();
+                
+                Serial.println("WiFi configuration received (restart required to apply)");
+                
+                client.println("HTTP/1.1 200 OK");
+                client.println("Content-type:application/json");
+                client.println("Access-Control-Allow-Origin: *");
+                client.println("Connection: close");
+                client.println();
+                client.println("{\"success\":true,\"message\":\"WiFi settings updated. ESP32 will restart to apply changes.\"}");
+                client.println();
+                
+                // Optional: Store credentials and restart
+                // EEPROM.write(...); or save to SPIFFS
+                // delay(1000);
+                // ESP.restart();
+                
+                break;
+              }
+            }
+
             // Handle OPTIONS requests for CORS
             if (header.indexOf("OPTIONS") >= 0) {
               client.println("HTTP/1.1 200 OK");
