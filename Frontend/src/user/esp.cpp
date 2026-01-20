@@ -18,8 +18,15 @@ const byte DNS_PORT = 53;
 // ================= GPIO =================
 const int ledPin16 = 16;
 const int ledPin17 = 17;
+const int resetButtonPin = 4; // GPIO4 for reset button (pull-down)
 int motorValue = 50;
 int buzzerValue = 50;
+
+// ================= RESET BUTTON =================
+const unsigned long RESET_HOLD_TIME = 5000; // 5 seconds in milliseconds
+unsigned long buttonPressStartTime = 0;
+bool buttonPressed = false;
+bool resetInProgress = false;
 
 // ================= AUTHENTICATION =================
 String defaultUsername = "admin";
@@ -279,7 +286,11 @@ void setup() {
   pinMode(ledPin17, OUTPUT);
   digitalWrite(ledPin16, LOW);
   digitalWrite(ledPin17, LOW);
+  
+  // Configure reset button with internal pull-up (button connects to GND)
+  pinMode(resetButtonPin, INPUT_PULLUP);
   Serial.println("✓ GPIO pins configured");
+  Serial.println("✓ Reset button configured on GPIO" + String(resetButtonPin) + " (hold 5 sec to reset)");
 
   Serial.println("\n=== Starting WiFi Access Point ===");
   // Start Access Point with loaded credentials
@@ -313,6 +324,67 @@ void loop() {
   
   // Check session timeout
   checkSessionTimeout();
+  
+  // ===== RESET BUTTON HANDLING =====
+  int buttonState = digitalRead(resetButtonPin);
+  
+  // Button is pressed when LOW (pulled to ground)
+  if (buttonState == LOW) {
+    if (!buttonPressed) {
+      // Button just pressed
+      buttonPressed = true;
+      buttonPressStartTime = millis();
+      Serial.println("\n[RESET BUTTON] Button pressed - hold for 5 seconds to reset...");
+    } else {
+      // Button is being held
+      unsigned long holdDuration = millis() - buttonPressStartTime;
+      
+      // Visual feedback every second
+      if (holdDuration % 1000 < 50 && !resetInProgress) {
+        int secondsHeld = holdDuration / 1000;
+        Serial.println("[RESET BUTTON] Held for " + String(secondsHeld) + " seconds...");
+      }
+      
+      // Check if held for 5 seconds
+      if (holdDuration >= RESET_HOLD_TIME && !resetInProgress) {
+        resetInProgress = true;
+        Serial.println("\n╔════════════════════════════════════════╗");
+        Serial.println("║   FACTORY RESET TRIGGERED!            ║");
+        Serial.println("╚════════════════════════════════════════╝");
+        
+        // Provide visual feedback with LEDs
+        for (int i = 0; i < 3; i++) {
+          digitalWrite(ledPin16, HIGH);
+          digitalWrite(ledPin17, HIGH);
+          delay(200);
+          digitalWrite(ledPin16, LOW);
+          digitalWrite(ledPin17, LOW);
+          delay(200);
+        }
+        
+        // Reset credentials
+        resetToDefaults();
+        
+        Serial.println("\n>>> Credentials reset to defaults:");
+        Serial.println("    Username: admin");
+        Serial.println("    Password: Admin@123");
+        Serial.println("    WiFi SSID: ESP32-Network");
+        Serial.println("    WiFi Password: Esp32-Password");
+        Serial.println("\n>>> Restarting ESP32 in 2 seconds...");
+        
+        delay(2000);
+        ESP.restart();
+      }
+    }
+  } else {
+    // Button released
+    if (buttonPressed && !resetInProgress) {
+      unsigned long holdDuration = millis() - buttonPressStartTime;
+      Serial.println("[RESET BUTTON] Button released after " + String(holdDuration) + "ms (need 5000ms)");
+      buttonPressed = false;
+      buttonPressStartTime = 0;
+    }
+  }
   
   // Check for serial commands
   if (Serial.available()) {
