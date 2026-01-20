@@ -6,6 +6,7 @@ import Settings from './user/Settings';
 import UserManual from './user/UserManual';
 import ProtectedRoute from './components/ProtectedRoute';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
+import ConnectionMonitor from './components/ConnectionMonitor';
 import './App.css';
 
 function App() {
@@ -37,6 +38,9 @@ function App() {
       
       {/* PWA Install Prompt */}
       <PWAInstallPrompt />
+      
+      {/* Connection Monitor */}
+      <ConnectionMonitor />
     </>
   );
 }

@@ -88,16 +88,26 @@ function Settings() {
   const handleWifiUpdate = (e: React.FormEvent) => {
     e.preventDefault()
     
+    console.log('=== WiFi Settings Change Request ===');
+    console.log('New SSID:', wifiSSID);
+    console.log('New Password:', wifiPassword);
+    console.log('Password validation starting...');
+    
     // Validate WiFi password
     const validation = validatePassword(wifiPassword)
     if (!validation.isValid) {
+      console.log('WiFi password validation FAILED:', validation.error);
       setWifiPasswordError(validation.error)
       return
     }
     
+    console.log('WiFi password validation passed');
+    console.log('Sending WiFi settings to ESP32...');
+    
     // Use authService to update WiFi settings on ESP32
     authService.updateWiFiSettings(wifiSSID, wifiPassword)
       .then((result) => {
+        console.log('ESP32 WiFi settings response:', result);
         if (result.success) {
           setWifiPasswordError('')
           setModalType('success')
@@ -118,14 +128,23 @@ function Settings() {
   const handleUsernameChange = (e: React.FormEvent) => {
     e.preventDefault()
     
+    console.log('=== Username Change Request ===');
+    console.log('Current Password:', usernamePassword);
+    console.log('New Username:', username);
+    
     if (!username || username.trim() === '') {
+      console.log('Username validation FAILED: Empty username');
       setUsernameError('Username cannot be empty')
       return
     }
     
+    console.log('Username validation passed');
+    console.log('Sending username change to ESP32...');
+    
     // Use authService to change username
     authService.changeUsername(usernamePassword, username)
       .then((result) => {
+        console.log('ESP32 username change response:', result);
         if (result.success) {
           setUsernameError('')
           setModalType('success')
@@ -146,21 +165,33 @@ function Settings() {
   const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault()
     
+    console.log('=== Password Change Request ===');
+    console.log('Current Password:', currentPassword);
+    console.log('New Password:', newPassword);
+    console.log('Confirm Password:', confirmPassword);
+    console.log('Password validation starting...');
+    
     // Validate new password
     const validation = validatePassword(newPassword)
     if (!validation.isValid) {
+      console.log('New password validation FAILED:', validation.error);
       setNewPasswordError(validation.error)
       return
     }
     
     if (newPassword !== confirmPassword) {
+      console.log('Password confirmation FAILED: Passwords do not match');
       setNewPasswordError('New passwords do not match!')
       return
     }
     
+    console.log('Password validation passed');
+    console.log('Sending password change to ESP32...');
+    
     // Use authService to change password on ESP32
     authService.changePassword(currentPassword, newPassword)
       .then((result) => {
+        console.log('ESP32 password change response:', result);
         if (result.success) {
           setNewPasswordError('')
           setModalType('success')
