@@ -216,7 +216,7 @@ function Dashboard() {
                                     onChange={(e) => handleVolumeChange(index, Number(e.target.value))}
                                     className="w-full h-2 rounded-full appearance-none cursor-pointer"
                                     style={{
-                                        background: 'transparent'
+                                        background: 'Gray'
                                     }}
                                 />
                             </div>
