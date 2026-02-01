@@ -6,6 +6,13 @@ const MOCK_CREDENTIALS = {
   password: 'Admin@123'
 };
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+
+interface AuthStatusResponse {
+  authenticated: boolean;
+  user?: string;
+}
+
 export interface LoginResponse {
   success: boolean;
   message: string;
@@ -172,7 +179,7 @@ class AuthService {
     }
   }
 
-  async updateWiFiSettings(ssid: string, password: string): Promise<LoginResponse> {
+  async updateWiFiSettings(ssid: string, _password: string): Promise<LoginResponse> {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
@@ -182,6 +189,27 @@ class AuthService {
       success: true,
       message: 'WiFi settings updated successfully'
     };
+  }
+
+  async sendVerificationCode(email: string): Promise<{ success: boolean; message: string; code?: string }> {
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Generate a random 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(`[Mock Email Service] Verification code for ${email}: ${code}`);
+    
+    return {
+      success: true,
+      message: 'Verification code sent',
+      code
+    };
+  }
+
+  async verifyEmail(_email: string, code: string, serverCode: string): Promise<boolean> {
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return code === serverCode;
   }
 }
 

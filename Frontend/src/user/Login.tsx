@@ -132,6 +132,15 @@ function Login() {
                             {isLoading ? 'Signing In...' : 'Sign In'}
                         </button>
 
+                        <div className="mt-4 text-center">
+                            <p className="text-white/90 text-sm">
+                                Don't have an account?{' '}
+                                <a href="/user/signup" className="text-white font-bold hover:underline">
+                                    Sign Up
+                                </a>
+                            </p>
+                        </div>
+
                         {/* Connection Info */}
                         <div className="text-white text-xs text-center mt-2 opacity-80">
                             <p>Make sure you're connected to the ESP32 WiFi network</p>

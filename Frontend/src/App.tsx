@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './user/Login';
+import SignupPage from './user/Signup';
 import Dashboard from './user/Dashboard';
 import MainLayout from './user/MainLayout';
 import Settings from './user/Settings';
@@ -18,6 +19,9 @@ function App() {
 
           {/* Login route */}
           <Route path="/user/login" element={<Login />} />
+
+          {/* Signup route */}
+          <Route path="/user/signup" element={<SignupPage />} />
 
           {/* Protected Layout route with nested pages */}
           <Route 

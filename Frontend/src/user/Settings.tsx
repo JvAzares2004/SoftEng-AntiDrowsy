@@ -3,6 +3,34 @@ import BurgerIcon from '../component/svg/BurgerIcon'
 import { useSidebar } from './MainLayout'
 import authService from '../services/authService'
 
+// Password criteria checking function
+const checkPasswordCriteria = (password: string) => {
+  return {
+    hasUppercase: /[A-Z]/.test(password),
+    hasLowercase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    // eslint-disable-next-line no-useless-escape
+    hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+  }
+}
+
+const PasswordCriteriaList = ({ criteria }: { criteria: ReturnType<typeof checkPasswordCriteria> }) => (
+  <div className="mt-2 space-y-1">
+    <p className={`text-xs ${criteria.hasUppercase ? 'text-green-600' : 'text-red-600'}`}>
+      {criteria.hasUppercase ? '✓' : '✗'} At least one uppercase letter
+    </p>
+    <p className={`text-xs ${criteria.hasLowercase ? 'text-green-600' : 'text-red-600'}`}>
+      {criteria.hasLowercase ? '✓' : '✗'} At least one lowercase letter
+    </p>
+    <p className={`text-xs ${criteria.hasNumber ? 'text-green-600' : 'text-red-600'}`}>
+      {criteria.hasNumber ? '✓' : '✗'} At least one number
+    </p>
+    <p className={`text-xs ${criteria.hasSpecialChar ? 'text-green-600' : 'text-red-600'}`}>
+      {criteria.hasSpecialChar ? '✓' : '✗'} At least one special character
+    </p>
+  </div>
+)
+
 function Settings() {
   const { toggleSidebar } = useSidebar()
   
@@ -31,15 +59,6 @@ function Settings() {
   const [modalMessage, setModalMessage] = useState('')
   const [modalType, setModalType] = useState<'success' | 'error'>('success')
 
-  // Password criteria checking function
-  const checkPasswordCriteria = (password: string) => {
-    return {
-      hasUppercase: /[A-Z]/.test(password),
-      hasLowercase: /[a-z]/.test(password),
-      hasNumber: /[0-9]/.test(password),
-      hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
-    }
-  }
 
   // Get criteria status for WiFi password
   const wifiCriteria = checkPasswordCriteria(wifiPassword)
@@ -66,24 +85,6 @@ function Settings() {
 
     return { isValid: true, error: '' }
   }
-
-  // Password criteria component
-  const PasswordCriteriaList = ({ criteria }: { criteria: ReturnType<typeof checkPasswordCriteria> }) => (
-    <div className="mt-2 space-y-1">
-      <p className={`text-xs ${criteria.hasUppercase ? 'text-green-600' : 'text-red-600'}`}>
-        {criteria.hasUppercase ? '✓' : '✗'} At least one uppercase letter
-      </p>
-      <p className={`text-xs ${criteria.hasLowercase ? 'text-green-600' : 'text-red-600'}`}>
-        {criteria.hasLowercase ? '✓' : '✗'} At least one lowercase letter
-      </p>
-      <p className={`text-xs ${criteria.hasNumber ? 'text-green-600' : 'text-red-600'}`}>
-        {criteria.hasNumber ? '✓' : '✗'} At least one number
-      </p>
-      <p className={`text-xs ${criteria.hasSpecialChar ? 'text-green-600' : 'text-red-600'}`}>
-        {criteria.hasSpecialChar ? '✓' : '✗'} At least one special character
-      </p>
-    </div>
-  )
 
   const handleWifiUpdate = (e: React.FormEvent) => {
     e.preventDefault()
