@@ -34,25 +34,13 @@ class AuthService {
   }
 
   async login(username: string, password: string): Promise<LoginResult> {
-    // Simple authentication logic - in production, this should call a backend API
-    const validCredentials = [
-      { username: 'admin', password: 'admin123' },
-      { username: 'user', password: 'user123' }
-    ];
-
-    const isValid = validCredentials.some(
-      cred => cred.username === username && cred.password === password
-    );
-
-    if (isValid) {
-      this.currentUser = { username };
-      this.lastActivity = Date.now();
-      localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-      localStorage.setItem('lastActivity', this.lastActivity.toString());
-      return { success: true };
-    }
-
-    return { success: false, message: 'Invalid username or password' };
+    // Auto-login: accept any credentials
+    const user = username || 'guest';
+    this.currentUser = { username: user };
+    this.lastActivity = Date.now();
+    localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+    localStorage.setItem('lastActivity', this.lastActivity.toString());
+    return { success: true };
   }
 
   async logout(): Promise<void> {

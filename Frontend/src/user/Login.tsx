@@ -45,9 +45,9 @@ function Login() {
         }
     };
     return (
-        <div className="flex flex-col inter min-h-screen">
+        <div className="flex flex-col inter min-h-screen bg-gray-50">
             {/* Header */}
-            <div className="flex flex-col items-center md:flex-row px-5 py-4 gap-2 md:gap-4 md:border-b border-b-gray-300 md:mt-0">
+            <div className="flex flex-col items-center md:flex-row px-5 py-4 gap-2 md:gap-4 md:border-b border-b-gray-300">
                 <img src={DrowsinessLogo} alt="Logo" className="w-16 h-16 md:w-16 md:h-16" />
 
                 <div className="flex flex-col justify-center items-center">
@@ -57,8 +57,8 @@ function Login() {
             </div>
 
             {/* Centered Login Container */}
-            <div className="flex flex-col justify-center items-center flex-1">
-                <div className="flex flex-col gap-4 bg-[#C52233] px-8 py-8 md:px-10 md:rounded-xl w-full max-w-md shadow-lg mx-4">
+            <div className="flex flex-col justify-center items-center flex-1 p-4">
+                <div className="flex flex-col gap-4 bg-[#C52233] px-8 py-8 md:px-10 rounded-xl w-full max-w-md shadow-lg">
 
                     <h1 className="text-white text-2xl font-semibold text-center">Login to your account</h1>
 
@@ -111,16 +111,25 @@ function Login() {
                             </div>
                         </div>
 
-                        {/* Remember Me */}
-                        <div className="flex flex-row items-center space-x-2">
-                            <input 
-                                type="checkbox" 
-                                checked={rememberMe}
-                                onChange={(e) => setRememberMe(e.target.checked)}
-                                disabled={isLoading}
-                                className="border border-white w-5 h-5 checked:bg-white checked:border-white rounded-sm text-black disabled:opacity-50" 
-                            />
-                            <label className="text-white text-sm font-light tracking-wide">Remember me</label>
+                        {/* Remember Me and Sign Up Link */}
+                        <div className="flex flex-row items-center justify-between">
+                            <div className="flex flex-row items-center space-x-2">
+                                <input 
+                                    type="checkbox" 
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    disabled={isLoading}
+                                    className="border border-white w-5 h-5 checked:bg-white checked:border-white rounded-sm text-black disabled:opacity-50" 
+                                />
+                                <label className="text-white text-sm font-light tracking-wide">Remember me</label>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/user/signup')}
+                                className="text-white text-sm font-light hover:text-gray-200 transition-colors underline cursor-pointer"
+                            >
+                                Don't have an account?
+                            </button>
                         </div>
 
                         {/* Sign In Button */}
@@ -132,11 +141,7 @@ function Login() {
                             {isLoading ? 'Signing In...' : 'Sign In'}
                         </button>
 
-                        {/* Connection Info */}
-                        <div className="text-white text-xs text-center mt-2 opacity-80">
-                            <p>Make sure you're connected to the ESP32 WiFi network</p>
-                            <p className="font-semibold mt-1">Network: ESP32-Network</p>
-                        </div>
+
                     </form>
                 </div>
             </div>
