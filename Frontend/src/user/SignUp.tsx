@@ -23,6 +23,10 @@ function SignUp() {
     });
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [showVerifyModal, setShowVerifyModal] = useState(false);
+    const [verificationCode, setVerificationCode] = useState('');
+    const [isEmailVerified, setIsEmailVerified] = useState(false);
+    const [acceptedTerms, setAcceptedTerms] = useState(false);
 
     // Real-time validation with debounce
     useEffect(() => {
@@ -137,6 +141,33 @@ function SignUp() {
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
+    };
+
+    const handleVerifyEmail = () => {
+        if (!formData.email) {
+            setError('Please enter an email address first');
+            return;
+        }
+        if (fieldErrors.email) {
+            setError('Please enter a valid email address');
+            return;
+        }
+        setError('');
+        setShowVerifyModal(true);
+    };
+
+    const handleVerifyCode = () => {
+        // Frontend only - just mark as verified
+        if (verificationCode) {
+            setIsEmailVerified(true);
+            setShowVerifyModal(false);
+            setVerificationCode('');
+        }
+    };
+
+    const handleCloseModal = () => {
+        setShowVerifyModal(false);
+        setVerificationCode('');
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -254,15 +285,31 @@ function SignUp() {
 
                         {/* Email */}
                         <div>
-                            <input
-                                type="email"
-                                name="email"
-                                placeholder="Email"
-                                value={formData.email}
-                                onChange={handleInputChange}
-                                disabled={isLoading}
-                                className="text-white text-md font-light border border-white rounded-lg px-4 py-3 bg-transparent placeholder-white disabled:opacity-50 w-full"
-                            />
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        placeholder="Email"
+                                        value={formData.email}
+                                        onChange={handleInputChange}
+                                        disabled={isLoading || isEmailVerified}
+                                        className="text-white text-md font-light border border-white rounded-lg px-4 py-3 bg-transparent placeholder-white disabled:opacity-50 w-full"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleVerifyEmail}
+                                    disabled={isLoading || isEmailVerified}
+                                    className={`px-4 py-3 rounded-lg font-semibold text-sm whitespace-nowrap transition-colors ${
+                                        isEmailVerified 
+                                            ? 'bg-green-500 text-white cursor-default' 
+                                            : 'bg-white text-black hover:bg-gray-200 cursor-pointer'
+                                    } disabled:opacity-50`}
+                                >
+                                    {isEmailVerified ? 'Verified' : 'Verify'}
+                                </button>
+                            </div>
                             {fieldErrors.email && (
                                 <p className="text-red-200 text-xs mt-1">{fieldErrors.email}</p>
                             )}
@@ -356,10 +403,32 @@ function SignUp() {
                             )}
                         </div>
 
+                        {/* Terms and Conditions */}
+                        <div className="flex flex-row items-center space-x-2">
+                            <input 
+                                type="checkbox" 
+                                checked={acceptedTerms}
+                                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                                disabled={isLoading}
+                                className="border border-white w-5 h-5 checked:bg-white checked:border-white rounded-sm text-black disabled:opacity-50 cursor-pointer" 
+                            />
+                            <label className="text-white text-sm font-light tracking-wide">
+                                I have read the{' '}
+                                <a 
+                                    href="/user/terms-and-conditions" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="underline hover:text-gray-200 transition-colors cursor-pointer"
+                                >
+                                    Terms and Conditions
+                                </a>
+                            </label>
+                        </div>
+
                         {/* Sign Up Button */}
                         <button 
                             type="submit"
-                            disabled={isLoading}
+                            disabled={isLoading || !acceptedTerms}
                             className="bg-white text-black border font-bold text-lg w-full py-3 rounded-lg mt-2 cursor-pointer hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? 'Creating Account...' : 'Sign Up'}
@@ -381,6 +450,40 @@ function SignUp() {
                     </form>
                 </div>
             </div>
+
+            {/* Email Verification Modal */}
+            {showVerifyModal && (
+                <div className="fixed inset-0  bg-opacity-80 flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-xl p-6 max-w-md w-full shadow-2xl animate-scaleIn">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-4">Verify Your Email</h2>
+                        <p className="text-gray-600 mb-4">
+                            We've sent a verification code to <span className="font-semibold">{formData.email}</span>
+                        </p>
+                        <input
+                            type="text"
+                            placeholder="Enter verification code"
+                            value={verificationCode}
+                            onChange={(e) => setVerificationCode(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-[#C52233]"
+                        />
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleCloseModal}
+                                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleVerifyCode}
+                                disabled={!verificationCode}
+                                className="flex-1 px-4 py-3 bg-[#C52233] text-white rounded-lg font-semibold hover:bg-[#a01c2a] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Verify
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
