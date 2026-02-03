@@ -6,11 +6,6 @@ import BurgerIcon from '../component/svg/BurgerIcon'
 import PlayIcon from '../component/svg/PlayerIcon'
 import FullscreenIcon from '../component/svg/FullscreenIcon'
 import CameraIcon from '../component/svg/CameraIcon'
-import SystemStatusIcon from '../component/svg/SystemStatusIcon'
-
-import MicroControllerIcon from '../component/svg/MicroControllerIcon'
-import AlertModuleIcon from '../component/svg/AlertModule'
-import PlainCameraIcon from '../component/svg/PlainCameraIcon'
 import { useSidebar } from './MainLayout'
 
 function Dashboard() {
@@ -26,12 +21,6 @@ function Dashboard() {
     const [isCameraActive, setIsCameraActive] = useState(false)
     const [cameraError, setCameraError] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(true)
-
-    const systemStatus = [
-        {type:"micro-controller", name:"Micro Controller", status: "Inactive", icon: MicroControllerIcon},
-        {type:"alert-module", name:"Alert Module", status: "Active", icon: AlertModuleIcon},
-        {type:"camera", name:"Camera", status: "Inactive", icon: PlainCameraIcon},
-    ]
 
     // Helper function to get dynamic color based on volume
     const getVolumeColor = (volume: number) => {
@@ -231,9 +220,9 @@ function Dashboard() {
                                         color: volumeColor
                                     } as React.CSSProperties}
                                 >
-                                    {vol.volume <= 25 ? 'Low Risk' : 
-                                     vol.volume <= 50 ? 'Medium Risk' : 
-                                     vol.volume <= 75 ? 'High Risk' : 'Very High Risk'}
+                                    {vol.volume <= 25 ? 'Low ' : 
+                                     vol.volume <= 50 ? 'Medium ' : 
+                                     vol.volume <= 75 ? 'High ' : 'Very High '}
                                 </div>
                             </div>
                             
@@ -311,38 +300,6 @@ function Dashboard() {
                             </div>
                         )}
                     </div>
-                </div>
-
-                <div className="flex flex-col border rounded-xl p-4 gap-4 bg-white shadow-md">
-                    <div className="flex flex-row gap-2">
-                        <SystemStatusIcon />
-                        <h1 className="text-xl font-bold">System Status</h1>
-                    </div>
-
-                    {/* System Status (Micro Controller, Alert Modules and Camera) */}
-                    {systemStatus.map((stat, index) => {
-                        const Icon = stat.icon;
-
-                        return (
-                            <div key={index} className="flex flex-row items-center px-3 py-1 justify-between">
-                                <div className="flex flex-row gap-6 text-lg">
-                                    <Icon 
-                                        className={`
-                                            ${stat.status?.toLowerCase() === "active" ? "text-[#01D901]" : "text-[#C52233]"} w-7 h-7`
-                                        }
-                                    />
-                                    <span>{stat.name}</span>
-                                </div>
-
-                                <span 
-                                    className={
-                                        `${stat.status?.toLowerCase() === "active" ? "text-[#01D901]" : "text-[#C52233]"}`
-                                    }
-                                >
-                                    {stat.status}</span>
-                            </div>
-                        )
-                    })}
                 </div>
             </div>
         </div>
