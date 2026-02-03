@@ -21,6 +21,16 @@ function Dashboard() {
     const [isCameraActive, setIsCameraActive] = useState(false)
     const [cameraError, setCameraError] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(true)
+    const [monthlyTriggerCount, setMonthlyTriggerCount] = useState(0)
+    const [successfulTriggers, setSuccessfulTriggers] = useState(0)
+    const [failedTriggers, setFailedTriggers] = useState(0)
+    const [triggerHistory, setTriggerHistory] = useState([
+        { id: 1, timestamp: '2026-02-03 14:32:15', status: 'success', alertType: 'Motor Vibration', severity: 'High' },
+        { id: 2, timestamp: '2026-02-03 12:15:42', status: 'success', alertType: 'Buzzer', severity: 'Very High' },
+        { id: 3, timestamp: '2026-02-03 10:08:30', status: 'failed', alertType: 'Motor Vibration', severity: 'Medium' },
+        { id: 4, timestamp: '2026-02-02 18:45:12', status: 'success', alertType: 'Buzzer', severity: 'High' },
+        { id: 5, timestamp: '2026-02-02 15:22:05', status: 'failed', alertType: 'Motor Vibration', severity: 'Low' },
+    ])
 
     // Helper function to get dynamic color based on volume
     const getVolumeColor = (volume: number) => {
@@ -146,7 +156,33 @@ function Dashboard() {
                 <BurgerIcon className="text-[#C52233]"/>
             </button>
 
-            <div className="flex flex-col gap-6 mt-10 p-4">
+            {/* Trigger Counters */}
+            <div className="mt-6 p-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Monthly Trigger Counter */}
+                    <div className="flex flex-col items-center justify-center p-6 border rounded-xl bg-gradient-to-br from-[#C52233] to-red-700 shadow-lg">
+                        <h2 className="text-white text-lg font-semibold mb-2">Monthly Triggers</h2>
+                        <div className="text-white text-6xl font-bold mb-1">{monthlyTriggerCount}</div>
+                        <p className="text-white/80 text-sm">Total this month</p>
+                    </div>
+
+                    {/* Successful Triggers */}
+                    <div className="flex flex-col items-center justify-center p-6 border rounded-xl bg-gradient-to-br from-green-500 to-green-700 shadow-lg">
+                        <h2 className="text-white text-lg font-semibold mb-2">Successful Triggers</h2>
+                        <div className="text-white text-6xl font-bold mb-1">{successfulTriggers}</div>
+                        <p className="text-white/80 text-sm">Alerts delivered</p>
+                    </div>
+
+                    {/* Failed Triggers */}
+                    <div className="flex flex-col items-center justify-center p-6 border rounded-xl bg-gradient-to-br from-orange-500 to-orange-700 shadow-lg">
+                        <h2 className="text-white text-lg font-semibold mb-2">Failed Triggers</h2>
+                        <div className="text-white text-6xl font-bold mb-1">{failedTriggers}</div>
+                        <p className="text-white/80 text-sm">Alert failures</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-6 mt-6 p-4">
                 {volumes.map((vol, index) => {
                     const Icon = vol.icon;
                     const volumeColor = getVolumeColor(vol.volume);
@@ -299,6 +335,60 @@ function Dashboard() {
                                 )}
                             </div>
                         )}
+                    </div>
+                </div>
+
+                {/* Trigger History */}
+                <div className="flex flex-col border rounded-xl p-6 gap-4 bg-white shadow-md">
+                    <h2 className="text-2xl font-bold text-slate-800 mb-2">Trigger History</h2>
+                    
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b-2 border-slate-200">
+                                    <th className="text-left py-3 px-4 text-slate-600 font-semibold">Timestamp</th>
+                                    <th className="text-left py-3 px-4 text-slate-600 font-semibold">Alert Type</th>
+                                    <th className="text-left py-3 px-4 text-slate-600 font-semibold">Severity</th>
+                                    <th className="text-left py-3 px-4 text-slate-600 font-semibold">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {triggerHistory.map((trigger) => (
+                                    <tr key={trigger.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                        <td className="py-3 px-4 text-slate-700">{trigger.timestamp}</td>
+                                        <td className="py-3 px-4 text-slate-700">{trigger.alertType}</td>
+                                        <td className="py-3 px-4">
+                                            <span 
+                                                className="px-3 py-1 rounded-full text-sm font-semibold"
+                                                style={{
+                                                    backgroundColor: 
+                                                        trigger.severity === 'Low' ? '#10B98120' :
+                                                        trigger.severity === 'Medium' ? '#F59E0B20' :
+                                                        trigger.severity === 'High' ? '#FB923C20' : '#EF444420',
+                                                    color:
+                                                        trigger.severity === 'Low' ? '#10B981' :
+                                                        trigger.severity === 'Medium' ? '#F59E0B' :
+                                                        trigger.severity === 'High' ? '#FB923C' : '#EF4444'
+                                                }}
+                                            >
+                                                {trigger.severity}
+                                            </span>
+                                        </td>
+                                        <td className="py-3 px-4">
+                                            <span 
+                                                className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                                    trigger.status === 'success' 
+                                                        ? 'bg-green-100 text-green-700' 
+                                                        : 'bg-orange-100 text-orange-700'
+                                                }`}
+                                            >
+                                                {trigger.status === 'success' ? 'Success' : 'Failed'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
