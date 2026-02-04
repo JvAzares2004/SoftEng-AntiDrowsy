@@ -1,12 +1,12 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import './App.css'
-import Login from './user/Login'
-import SignUp from './user/SignUp'
-import TermsAndConditions from './user/TermsAndConditions'
-import MainLayout from './user/MainLayout'
-import Dashboard from './user/Dashboard'
-import Settings from './user/Settings'
-import UserManual from './user/UserManual'
+import Login from './pages/user/Login'
+import SignUp from './pages/user/SignUp'
+import TermsAndConditions from './pages/user/TermsAndConditions'
+import MainLayout from './pages/user/MainLayout'
+import Dashboard from './pages/user/Dashboard'
+import Settings from './pages/user/Settings'
+import UserManual from './pages/user/UserManual'
 
 function App() {
   return (

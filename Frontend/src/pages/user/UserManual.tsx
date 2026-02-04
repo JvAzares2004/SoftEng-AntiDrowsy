@@ -1,4 +1,4 @@
-import BurgerIcon from '../component/svg/BurgerIcon'
+import BurgerIcon from '../../component/svg/BurgerIcon'
 import { useSidebar } from './MainLayout'
 
 function UserManual() {

@@ -1,7 +1,7 @@
-import DrowsinessLogo from '../component/img/Drowsiness-Logo.png';
+import DrowsinessLogo from '../../component/img/Drowsiness-Logo.png';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import authService from '../services/authService';
+import authService from '../../services/authService';
 
 function Login() {
     const navigate = useNavigate();

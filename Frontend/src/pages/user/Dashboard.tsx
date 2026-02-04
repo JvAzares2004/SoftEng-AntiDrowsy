@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import MotorVolumeIcon from '../component/svg/MotorVolumeIcon'
-import BuzzerIcon from '../component/svg/BuzzerIcon'
-import BurgerIcon from '../component/svg/BurgerIcon'
+import MotorVolumeIcon from '../../component/svg/MotorVolumeIcon'
+import BuzzerIcon from '../../component/svg/BuzzerIcon'
+import BurgerIcon from '../../component/svg/BurgerIcon'
 
-import PlayIcon from '../component/svg/PlayerIcon'
-import FullscreenIcon from '../component/svg/FullscreenIcon'
-import CameraIcon from '../component/svg/CameraIcon'
+import PlayIcon from '../../component/svg/PlayerIcon'
+import FullscreenIcon from '../../component/svg/FullscreenIcon'
+import CameraIcon from '../../component/svg/CameraIcon'
 import { useSidebar } from './MainLayout'
 
 function Dashboard() {
@@ -175,7 +175,7 @@ function Dashboard() {
 
                     {/* Failed Triggers */}
                     <div className="flex flex-col items-center justify-center p-6 border rounded-xl bg-gradient-to-br from-orange-500 to-orange-700 shadow-lg">
-                        <h2 className="text-white text-lg font-semibold mb-2">Failed Triggers</h2>
+                        <h2 className="text-white text-lg font-semibold mb-2">Failed/False Triggers</h2>
                         <div className="text-white text-6xl font-bold mb-1">{failedTriggers}</div>
                         <p className="text-white/80 text-sm">Alert failures</p>
                     </div>

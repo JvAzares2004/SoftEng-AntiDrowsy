@@ -1,4 +1,4 @@
-import DrowsinessLogo from '../component/img/Drowsiness-Logo.png';
+import DrowsinessLogo from '../../component/img/Drowsiness-Logo.png';
 import { useNavigate } from 'react-router-dom';
 
 function TermsAndConditions() {

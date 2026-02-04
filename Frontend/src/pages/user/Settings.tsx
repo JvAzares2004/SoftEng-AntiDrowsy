@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import BurgerIcon from '../component/svg/BurgerIcon'
+import BurgerIcon from '../../component/svg/BurgerIcon'
 import { useSidebar } from './MainLayout'
-import authService from '../services/authService'
+import authService from '../../services/authService'
 
 function Settings() {
   const { toggleSidebar } = useSidebar()
