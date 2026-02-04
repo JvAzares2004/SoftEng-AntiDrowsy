@@ -7,12 +7,20 @@ import MainLayout from './pages/user/MainLayout'
 import Dashboard from './pages/user/Dashboard'
 import Settings from './pages/user/Settings'
 import UserManual from './pages/user/UserManual'
+import AdminLayout from './pages/admin/AdminLayout'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminSettings from './pages/admin/AdminSettings'
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/user/login" replace />} />
-      <Route path="/user/login" element={<Login />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      
+      {/* Shared Login */}
+      <Route path="/login" element={<Login />} />
+      
+      {/* User Routes */}
+      <Route path="/user/login" element={<Navigate to="/login" replace />} />
       <Route path="/user/signup" element={<SignUp />} />
       <Route path="/user/terms-and-conditions" element={<TermsAndConditions />} />
       <Route
@@ -22,6 +30,16 @@ function App() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="settings" element={<Settings />} />
         <Route path="user-manual" element={<UserManual />} />
+      </Route>
+
+      {/* Admin Routes */}
+      <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+      <Route
+        path="/admin"
+        element={<AdminLayout />}
+      >
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="settings" element={<AdminSettings />} />
       </Route>
     </Routes>
   )
