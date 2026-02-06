@@ -27,6 +27,10 @@ function SignUp() {
     const [verificationCode, setVerificationCode] = useState('');
     const [isEmailVerified, setIsEmailVerified] = useState(false);
     const [acceptedTerms, setAcceptedTerms] = useState(false);
+    const [isSendingCode, setIsSendingCode] = useState(false);
+    const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+
+    const API_URL = 'http://localhost:3000';
 
     // Real-time validation with debounce
     useEffect(() => {
@@ -143,7 +147,7 @@ function SignUp() {
         setShowPassword(!showPassword);
     };
 
-    const handleVerifyEmail = () => {
+    const handleVerifyEmail = async () => {
         if (!formData.email) {
             setError('Please enter an email address first');
             return;
@@ -152,16 +156,68 @@ function SignUp() {
             setError('Please enter a valid email address');
             return;
         }
+        
         setError('');
-        setShowVerifyModal(true);
+        setIsSendingCode(true);
+        
+        try {
+            const response = await fetch(`${API_URL}/auth/send-verification`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: formData.email }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setShowVerifyModal(true);
+            } else {
+                setError(data.message || 'Failed to send verification code');
+            }
+        } catch (err) {
+            setError('Failed to send verification code. Please try again.');
+            console.error('Error sending verification:', err);
+        } finally {
+            setIsSendingCode(false);
+        }
     };
 
-    const handleVerifyCode = () => {
-        // Frontend only - just mark as verified
-        if (verificationCode) {
-            setIsEmailVerified(true);
-            setShowVerifyModal(false);
-            setVerificationCode('');
+    const handleVerifyCode = async () => {
+        if (!verificationCode) {
+            return;
+        }
+
+        setIsVerifyingCode(true);
+
+        try {
+            const response = await fetch(`${API_URL}/auth/verify-code`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    email: formData.email, 
+                    code: verificationCode 
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setIsEmailVerified(true);
+                setShowVerifyModal(false);
+                setVerificationCode('');
+                setError('');
+            } else {
+                setError(data.message || 'Invalid verification code');
+            }
+        } catch (err) {
+            setError('Failed to verify code. Please try again.');
+            console.error('Error verifying code:', err);
+        } finally {
+            setIsVerifyingCode(false);
         }
     };
 
@@ -209,16 +265,46 @@ function SignUp() {
             return;
         }
 
+        // Check if email is verified
+        if (!isEmailVerified) {
+            setError('Please verify your email before signing up');
+            setIsLoading(false);
+            return;
+        }
+
+        // Check if passwords match
+        if (formData.password !== formData.confirmPassword) {
+            setError('Passwords do not match');
+            setIsLoading(false);
+            return;
+        }
+
         try {
-            // Here you would typically call a signup API
-            console.log('Sign up data:', formData);
-            
-            // For now, just navigate to login
-            setTimeout(() => {
+            const response = await fetch(`${API_URL}/auth/signup`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    firstname: formData.firstName,
+                    lastname: formData.lastName,
+                    email: formData.email,
+                    contact_number: formData.contactNumber,
+                    password: formData.password,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Navigate to login page after successful signup
                 navigate('/user/login');
-            }, 1000);
+            } else {
+                setError(data.message || 'Failed to create account');
+            }
         } catch (err) {
             setError('An unexpected error occurred. Please try again.');
+            console.error('Error during signup:', err);
         } finally {
             setIsLoading(false);
         }
@@ -300,14 +386,14 @@ function SignUp() {
                                 <button
                                     type="button"
                                     onClick={handleVerifyEmail}
-                                    disabled={isLoading || isEmailVerified}
+                                    disabled={isLoading || isEmailVerified || isSendingCode}
                                     className={`px-4 py-3 rounded-lg font-semibold text-sm whitespace-nowrap transition-colors ${
                                         isEmailVerified 
                                             ? 'bg-green-500 text-white cursor-default' 
                                             : 'bg-white text-black hover:bg-gray-200 cursor-pointer'
                                     } disabled:opacity-50`}
                                 >
-                                    {isEmailVerified ? 'Verified' : 'Verify'}
+                                    {isSendingCode ? 'Sending...' : isEmailVerified ? 'Verified' : 'Verify'}
                                 </button>
                             </div>
                             {fieldErrors.email && (
@@ -457,14 +543,15 @@ function SignUp() {
                     <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-xl p-6 max-w-md w-full shadow-2xl animate-scaleIn">
                         <h2 className="text-2xl font-bold text-gray-800 mb-4">Verify Your Email</h2>
                         <p className="text-gray-600 mb-4">
-                            We've sent a verification code to <span className="font-semibold">{formData.email}</span>
+                            A verification code has been sent to <span className="font-semibold">{formData.email}</span>. Please enter the code below.
                         </p>
                         <input
                             type="text"
                             placeholder="Enter verification code"
                             value={verificationCode}
                             onChange={(e) => setVerificationCode(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-[#C52233]"
+                            maxLength={6}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-[#C52233] text-center text-2xl tracking-widest"
                         />
                         <div className="flex gap-3">
                             <button
@@ -475,10 +562,10 @@ function SignUp() {
                             </button>
                             <button
                                 onClick={handleVerifyCode}
-                                disabled={!verificationCode}
+                                disabled={!verificationCode || isVerifyingCode}
                                 className="flex-1 px-4 py-3 bg-[#C52233] text-white rounded-lg font-semibold hover:bg-[#a01c2a] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Verify
+                                {isVerifyingCode ? 'Verifying...' : 'Verify'}
                             </button>
                         </div>
                     </div>
