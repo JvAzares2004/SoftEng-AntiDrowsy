@@ -6,6 +6,8 @@ import { DatabaseService } from './service/database/database.service';
 import { SupabaseService } from './service/supabase/supabase.service';
 import { EmailService } from './service/email/email.service';
 import { SignUpController } from './controllers/signup.controller';
+import { AdminSignUpController } from './controllers/admin-signup.controller';
+import { LoginController } from './controllers/login.controller';
 
 @Module({
   imports: [
@@ -14,7 +16,7 @@ import { SignUpController } from './controllers/signup.controller';
       envFilePath: '.env',
     }),
   ],
-  controllers: [AppController, SignUpController],
+  controllers: [AppController, SignUpController, AdminSignUpController, LoginController],
   providers: [AppService, DatabaseService, SupabaseService, EmailService],
 })
 export class AppModule {}

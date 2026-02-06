@@ -10,6 +10,7 @@ import UserManual from './pages/user/UserManual'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminSettings from './pages/admin/AdminSettings'
+import AdminSignUp from './pages/admin/AdminSignUp'
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
 
       {/* Admin Routes */}
       <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+      <Route path="/admin/signup" element={<AdminSignUp />} />
       <Route
         path="/admin"
         element={<AdminLayout />}

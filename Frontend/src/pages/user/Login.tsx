@@ -6,25 +6,11 @@ import authService from '../../services/authService';
 function Login() {
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-
-    // Mock credentials
-    const MOCK_CREDENTIALS = {
-        admin: {
-            username: 'admin',
-            password: 'admin123',
-            role: 'admin'
-        },
-        user: {
-            username: 'user',
-            password: 'user123',
-            role: 'user'
-        }
-    };
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
@@ -35,54 +21,31 @@ function Login() {
         setError('');
         setIsLoading(true);
 
-        if (!username || !password) {
-            setError('Please enter both username and password');
+        if (!email || !password) {
+            setError('Please enter both email and password');
             setIsLoading(false);
             return;
         }
 
-        // Check admin credentials
-        if (username === MOCK_CREDENTIALS.admin.username && password === MOCK_CREDENTIALS.admin.password) {
-            localStorage.setItem('adminUser', JSON.stringify({ 
-                username: MOCK_CREDENTIALS.admin.username, 
-                role: MOCK_CREDENTIALS.admin.role 
-            }));
-            if (rememberMe) {
-                localStorage.setItem('rememberMe', 'true');
-            }
-            navigate('/admin/dashboard');
-            setIsLoading(false);
-            return;
-        }
-
-        // Check user credentials
-        if (username === MOCK_CREDENTIALS.user.username && password === MOCK_CREDENTIALS.user.password) {
-            localStorage.setItem('currentUser', JSON.stringify({ 
-                username: MOCK_CREDENTIALS.user.username, 
-                role: MOCK_CREDENTIALS.user.role 
-            }));
-            if (rememberMe) {
-                localStorage.setItem('rememberMe', 'true');
-            }
-            navigate('/user/dashboard');
-            setIsLoading(false);
-            return;
-        }
-
-        // Try the existing authService for backward compatibility
         try {
-            const result = await authService.login(username, password);
+            const result = await authService.login(email, password);
             
             if (result.success) {
                 if (rememberMe) {
                     localStorage.setItem('rememberMe', 'true');
                 }
-                navigate('/user/dashboard');
+                
+                // Route based on role
+                if (result.role === 'admin') {
+                    navigate('/admin/dashboard');
+                } else {
+                    navigate('/user/dashboard');
+                }
             } else {
-                setError('Invalid username or password');
+                setError(result.message || 'Invalid email or password');
             }
         } catch (err) {
-            setError('Invalid username or password');
+            setError('Invalid email or password');
         } finally {
             setIsLoading(false);
         }
@@ -117,10 +80,10 @@ function Login() {
                         {/* Username and Password Input */}
                         <div className="flex flex-col gap-4">
                             <input
-                                type="text"
-                                placeholder="Username"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                type="email"
+                                placeholder="Email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading}
                                 className="text-white text-md font-light border border-white rounded-lg px-4 py-3 bg-transparent placeholder-white disabled:opacity-50"
                             />
@@ -183,13 +146,6 @@ function Login() {
                         >
                             {isLoading ? 'Signing In...' : 'Sign In'}
                         </button>
-
-                        {/* Demo Credentials */}
-                        <div className="text-white text-xs mt-2 text-center space-y-1">
-                            <p className="font-semibold">Demo Credentials:</p>
-                            <p>User: user / user123</p>
-                            <p>Admin: admin / admin123</p>
-                        </div>
 
                     </form>
                 </div>

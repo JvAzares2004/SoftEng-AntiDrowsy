@@ -4,6 +4,8 @@ import * as dotenv from 'dotenv';
 import chalk from 'chalk';
 import { createUserCustomerTable } from './models/user-customer.model';
 import { createVerificationCodesTable } from './models/verification-codes.model';
+import { createAdminTable } from './models/admin.model';
+import { createTriggersTable } from './models/triggers.model';
 
 dotenv.config();
 
@@ -41,7 +43,9 @@ export class DatabaseService implements OnModuleInit {
 
     console.log(chalk.cyan('[SUPABASE] Setting up tables...'));
     await createUserCustomerTable(this.client);
+    await createAdminTable(this.client);
     await createVerificationCodesTable(this.client);
+    await createTriggersTable(this.client);
 
     console.log(chalk.bgGreen.black('[SUPABASE] Database is ready!'));
   }
