@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Client } from 'pg';
 import * as dotenv from 'dotenv';
 import chalk from 'chalk';
+import { createUserCustomerTable } from './models/user-customer.model';
 
 dotenv.config();
 
@@ -38,10 +39,7 @@ export class DatabaseService implements OnModuleInit {
     console.log(chalk.green('[SUPABASE] Connected to the database!'));
 
     console.log(chalk.cyan('[SUPABASE] Setting up tables...'));
-    // Add your table creation functions here
-    // await createUsersTable(this.client);
-    // await createSessionsTable(this.client);
-    // etc.
+    await createUserCustomerTable(this.client);
 
     console.log(chalk.bgGreen.black('[SUPABASE] Database is ready!'));
   }
