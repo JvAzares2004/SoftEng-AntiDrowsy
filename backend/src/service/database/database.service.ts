@@ -6,6 +6,7 @@ import { createUserCustomerTable } from './models/user-customer.model';
 import { createVerificationCodesTable } from './models/verification-codes.model';
 import { createAdminTable } from './models/admin.model';
 import { createTriggersTable } from './models/triggers.model';
+import { createFeedbacksTable } from './models/feedback.model';
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ export class DatabaseService implements OnModuleInit {
     await createAdminTable(this.client);
     await createVerificationCodesTable(this.client);
     await createTriggersTable(this.client);
+    await createFeedbacksTable(this.client);
 
     console.log(chalk.bgGreen.black('[SUPABASE] Database is ready!'));
   }

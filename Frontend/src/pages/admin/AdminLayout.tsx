@@ -23,6 +23,16 @@ const AdminLayout: React.FC = () => {
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const navigate = useNavigate();
     const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+    
+    // Get admin's first name from localStorage
+    const getAdminFirstName = () => {
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+            const user = JSON.parse(storedUser);
+            return user.firstname || user.username || 'Admin';
+        }
+        return adminUser.firstname || adminUser.username || 'Admin';
+    };
 
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
@@ -79,10 +89,10 @@ const AdminLayout: React.FC = () => {
                         <div className="mb-6 p-3 bg-gray-100 rounded-lg">
                             <div className="flex items-center gap-2">
                                 <div className="w-10 h-10 bg-[#C52233] rounded-full flex items-center justify-center text-white font-bold">
-                                    {adminUser.username.charAt(0).toUpperCase()}
+                                    {getAdminFirstName().charAt(0).toUpperCase()}
                                 </div>
                                 <div>
-                                    <p className="text-sm font-semibold text-gray-800">{adminUser.username}</p>
+                                    <p className="text-sm font-semibold text-gray-800">{getAdminFirstName()}</p>
                                     <p className="text-xs text-gray-600">Admin</p>
                                 </div>
                             </div>

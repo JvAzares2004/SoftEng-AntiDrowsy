@@ -9,6 +9,7 @@ import { SignUpController } from './controllers/signup.controller';
 import { AdminSignUpController } from './controllers/admin-signup.controller';
 import { LoginController } from './controllers/login.controller';
 import { ProfileController } from './controllers/profile.controller';
+import { FeedbackController } from './controllers/feedback.controller';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { ProfileController } from './controllers/profile.controller';
       envFilePath: '.env',
     }),
   ],
-  controllers: [AppController, SignUpController, AdminSignUpController, LoginController, ProfileController],
+  controllers: [AppController, SignUpController, AdminSignUpController, LoginController, ProfileController, FeedbackController],
   providers: [AppService, DatabaseService, SupabaseService, EmailService],
 })
 export class AppModule {}
