@@ -8,6 +8,7 @@ import { EmailService } from './service/email/email.service';
 import { SignUpController } from './controllers/signup.controller';
 import { AdminSignUpController } from './controllers/admin-signup.controller';
 import { LoginController } from './controllers/login.controller';
+import { ProfileController } from './controllers/profile.controller';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { LoginController } from './controllers/login.controller';
       envFilePath: '.env',
     }),
   ],
-  controllers: [AppController, SignUpController, AdminSignUpController, LoginController],
+  controllers: [AppController, SignUpController, AdminSignUpController, LoginController, ProfileController],
   providers: [AppService, DatabaseService, SupabaseService, EmailService],
 })
 export class AppModule {}

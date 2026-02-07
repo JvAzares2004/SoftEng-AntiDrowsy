@@ -7,6 +7,7 @@ import Drowsiness_Logo from '../../component/img/Drowsiness-Logo.png';
 // Create context for sidebar
 interface SidebarContextType {
     toggleSidebar: () => void;
+    handleLogout: () => void;
 }
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
@@ -56,7 +57,7 @@ const MainLayout: React.FC = () => {
     };
 
     return (
-        <SidebarContext.Provider value={{ toggleSidebar }}>
+        <SidebarContext.Provider value={{ toggleSidebar, handleLogout: handleLogoutClick }}>
             <div className="flex min-h-screen relative">
             {/* Mobile Overlay */}
             {isSidebarOpen && (
@@ -168,13 +169,6 @@ const MainLayout: React.FC = () => {
                         >
                             User Manual
                         </NavLink>
-                        
-                        <button 
-                            onClick={handleLogoutClick} 
-                            className="block w-full text-left py-2 px-4 text-gray-700 hover:bg-red-500 hover:text-white rounded-lg transition-colors cursor-pointer"
-                        >
-                            Logout
-                        </button>
                     </nav>
                 </div>
             </aside>

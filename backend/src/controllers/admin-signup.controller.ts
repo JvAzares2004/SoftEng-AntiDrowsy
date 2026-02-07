@@ -41,6 +41,30 @@ export class AdminSignUpController {
     }
   }
 
+  @Post('check-contact')
+  async checkContact(@Body() body: { contact_number: string }) {
+    const client = this.dbService.getClient();
+
+    try {
+      const result = await client.query(
+        'SELECT contact_number FROM user_admins WHERE contact_number = $1',
+        [body.contact_number],
+      );
+
+      return {
+        success: true,
+        isAvailable: result.rows.length === 0,
+        message:
+          result.rows.length > 0
+            ? 'Contact number already registered'
+            : 'Contact number available',
+      };
+    } catch (error) {
+      console.error(chalk.red('[ERROR] Checking admin contact number:'), error);
+      return { success: false, message: 'Error checking contact number availability' };
+    }
+  }
+
   @Post('signup')
   async signUp(@Body() signUpDto: AdminSignUpDto) {
     const client = this.dbService.getClient();

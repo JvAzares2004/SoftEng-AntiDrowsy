@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import BurgerIcon from '../../component/svg/BurgerIcon'
 import { useSidebar } from './AdminLayout'
 import authService from '../../services/authService'
+
+const API_URL = 'http://localhost:3000';
 
 function AdminSettings() {
   const { toggleSidebar } = useSidebar()
@@ -12,7 +14,9 @@ function AdminSettings() {
   const [email, setEmail] = useState('')
   const [contactNumber, setContactNumber] = useState('')
   const [password, setPassword] = useState('')
+  const [passwordLength, setPasswordLength] = useState(0)
   const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Modal state for confirmation
   const [showEditModal, setShowEditModal] = useState(false)
@@ -20,12 +24,54 @@ function AdminSettings() {
   const [editingValue, setEditingValue] = useState<string>('')
   const [confirmPasswordValue, setConfirmPasswordValue] = useState<string>('')
   const [showModalPassword, setShowModalPassword] = useState(false)
-  const [showModalConfirmPassword, setShowModalConfirmPassword] = useState(false)
   
   // Success/Error Modal state
   const [showResultModal, setShowResultModal] = useState(false)
   const [modalMessage, setModalMessage] = useState('')
   const [modalType, setModalType] = useState<'success' | 'error'>('success')
+
+  // Fetch admin profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const storedUser = localStorage.getItem('currentUser');
+        const userRole = localStorage.getItem('userRole');
+        
+        if (!storedUser) {
+          setModalType('error');
+          setModalMessage('Please log in again');
+          setShowResultModal(true);
+          setIsLoading(false);
+          return;
+        }
+
+        const user = JSON.parse(storedUser);
+        const response = await fetch(`${API_URL}/auth/profile?email=${encodeURIComponent(user.email)}&role=${userRole}`);
+        const data = await response.json();
+
+        if (data.success && data.profile) {
+          setFirstName(data.profile.firstname || '');
+          setLastName(data.profile.lastname || '');
+          setEmail(data.profile.email || '');
+          setContactNumber(data.profile.contact_number || '');
+          setPasswordLength(data.profile.password_length || 0);
+        } else {
+          setModalType('error');
+          setModalMessage('Failed to load profile data');
+          setShowResultModal(true);
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        setModalType('error');
+        setModalMessage('Error loading profile');
+        setShowResultModal(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
   // Open edit modal
   const openEditModal = (fieldName: string, currentValue: string) => {
@@ -34,11 +80,10 @@ function AdminSettings() {
     setConfirmPasswordValue('')
     setShowEditModal(true)
     setShowModalPassword(false)
-    setShowModalConfirmPassword(false)
   }
 
   // Confirm the change
-  const confirmChange = () => {
+  const confirmChange = async () => {
     console.log(`=== Updating ${editingField} ===`)
     console.log('New Value:', editingValue)
     
@@ -68,7 +113,6 @@ function AdminSettings() {
           setShowResultModal(true)
           return
         }
-        setFirstName(editingValue)
         break
         
       case 'lastName':
@@ -86,7 +130,6 @@ function AdminSettings() {
           setShowResultModal(true)
           return
         }
-        setLastName(editingValue)
         break
         
       case 'email':
@@ -98,7 +141,6 @@ function AdminSettings() {
           setShowResultModal(true)
           return
         }
-        setEmail(editingValue)
         break
         
       case 'contactNumber':
@@ -117,7 +159,6 @@ function AdminSettings() {
           setShowResultModal(true)
           return
         }
-        setContactNumber(editingValue)
         break
         
       case 'password':
@@ -174,15 +215,84 @@ function AdminSettings() {
           setShowResultModal(true)
           return
         }
-        
-        setPassword(editingValue)
         break
     }
     
-    setShowEditModal(false)
-    setModalType('success')
-    setModalMessage(`${editingField.charAt(0).toUpperCase() + editingField.slice(1).replace(/([A-Z])/g, ' $1')} updated successfully!`)
-    setShowResultModal(true)
+    // Save to database
+    try {
+      const storedUser = localStorage.getItem('currentUser');
+      const userRole = localStorage.getItem('userRole');
+      
+      if (!storedUser) {
+        setShowEditModal(false);
+        setModalType('error');
+        setModalMessage('Please log in again');
+        setShowResultModal(true);
+        return;
+      }
+
+      const user = JSON.parse(storedUser);
+      const fieldMap: Record<string, string> = {
+        'firstName': 'firstname',
+        'lastName': 'lastname',
+        'contactNumber': 'contact_number',
+        'password': 'password'
+      };
+
+      const response = await fetch(`${API_URL}/auth/update-profile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.email,
+          role: userRole,
+          field: fieldMap[editingField] || editingField,
+          value: editingValue,
+          password: editingField === 'password' ? password : undefined
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local state
+        switch(editingField) {
+          case 'firstName':
+            setFirstName(editingValue);
+            break;
+          case 'lastName':
+            setLastName(editingValue);
+            break;
+          case 'email':
+            setEmail(editingValue);
+            break;
+          case 'contactNumber':
+            setContactNumber(editingValue);
+            break;
+          case 'password':
+            setPassword(editingValue);
+            setPasswordLength(editingValue.length);
+            break;
+        }
+        
+        setShowEditModal(false);
+        setModalType('success');
+        setModalMessage(`${editingField.charAt(0).toUpperCase() + editingField.slice(1).replace(/([A-Z])/g, ' $1')} updated successfully!`);
+        setShowResultModal(true);
+      } else {
+        setShowEditModal(false);
+        setModalType('error');
+        setModalMessage(data.message || 'Failed to update profile');
+        setShowResultModal(true);
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setShowEditModal(false);
+      setModalType('error');
+      setModalMessage('Error updating profile. Please try again.');
+      setShowResultModal(true);
+    }
   }
 
   // Cancel the change
@@ -322,9 +432,9 @@ function AdminSettings() {
                 <input
                   type="password"
                   id="password"
-                  value={password}
+                  value={passwordLength ? '•'.repeat(Math.min(passwordLength, 20)) : ''}
                   readOnly
-                  placeholder="Not set"
+                  placeholder={passwordLength ? `${passwordLength} characters` : "Not set"}
                   className="flex-1 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
                 />
                 <button
@@ -370,8 +480,18 @@ function AdminSettings() {
                         type="button"
                         onClick={() => setShowModalPassword(!showModalPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-800 cursor-pointer"
+                        aria-label={showModalPassword ? "Hide password" : "Show password"}
                       >
-                        {showModalPassword ? "Hide" : "Show"}
+                        {showModalPassword ? (
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        ) : (
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
                       </button>
                     </div>
                     
@@ -381,7 +501,7 @@ function AdminSettings() {
                       </label>
                       <div className="relative">
                         <input
-                          type={showModalConfirmPassword ? "text" : "password"}
+                          type={showModalPassword ? "text" : "password"}
                           value={confirmPasswordValue}
                           onChange={(e) => setConfirmPasswordValue(e.target.value)}
                           placeholder="Confirm new password"
@@ -389,10 +509,20 @@ function AdminSettings() {
                         />
                         <button
                           type="button"
-                          onClick={() => setShowModalConfirmPassword(!showModalConfirmPassword)}
+                          onClick={() => setShowModalPassword(!showModalPassword)}
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-800 cursor-pointer"
+                          aria-label={showModalPassword ? "Hide password" : "Show password"}
                         >
-                          {showModalConfirmPassword ? "Hide" : "Show"}
+                          {showModalPassword ? (
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          ) : (
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
                         </button>
                       </div>
                     </div>

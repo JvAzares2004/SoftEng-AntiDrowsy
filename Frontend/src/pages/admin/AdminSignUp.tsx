@@ -24,6 +24,8 @@ function AdminSignUp() {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [acceptedTerms, setAcceptedTerms] = useState(false);
+    const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+    const [isCheckingContact, setIsCheckingContact] = useState(false);
 
     const API_URL = 'http://localhost:3000';
 
@@ -63,39 +65,100 @@ function AdminSignUp() {
     }, [formData.lastName]);
 
     useEffect(() => {
-        const timer = setTimeout(() => {
+        const timer = setTimeout(async () => {
             if (formData.email && formData.email.length > 0) {
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 if (!emailRegex.test(formData.email)) {
                     setFieldErrors(prev => ({ ...prev, email: 'Please enter a valid email address' }));
+                    setIsCheckingEmail(false);
                 } else {
+                    // Email format is valid, now check availability
+                    setIsCheckingEmail(true);
                     setFieldErrors(prev => ({ ...prev, email: '' }));
+                    
+                    try {
+                        const response = await fetch(`${API_URL}/admin/auth/check-email`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ email: formData.email }),
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success && !data.isAvailable) {
+                            setFieldErrors(prev => ({ ...prev, email: 'This email is already registered' }));
+                        } else if (data.success && data.isAvailable) {
+                            setFieldErrors(prev => ({ ...prev, email: '' }));
+                        }
+                    } catch (err) {
+                        console.error('Error checking email availability:', err);
+                        // Don't show error to user, just log it
+                    } finally {
+                        setIsCheckingEmail(false);
+                    }
                 }
             } else {
                 setFieldErrors(prev => ({ ...prev, email: '' }));
+                setIsCheckingEmail(false);
             }
         }, 500);
 
-        return () => clearTimeout(timer);
+        return () => {
+            clearTimeout(timer);
+            setIsCheckingEmail(false);
+        };
     }, [formData.email]);
 
     useEffect(() => {
-        const timer = setTimeout(() => {
+        const timer = setTimeout(async () => {
             if (formData.contactNumber && formData.contactNumber.length > 0) {
                 const phoneRegex = /^[0-9+\-\s()]+$/;
                 if (!phoneRegex.test(formData.contactNumber)) {
                     setFieldErrors(prev => ({ ...prev, contactNumber: 'Please enter a valid contact number' }));
+                    setIsCheckingContact(false);
                 } else if (formData.contactNumber.replace(/[^0-9]/g, '').length < 10) {
                     setFieldErrors(prev => ({ ...prev, contactNumber: 'Contact number must be at least 10 digits' }));
+                    setIsCheckingContact(false);
                 } else {
+                    // Contact number format is valid, now check availability
+                    setIsCheckingContact(true);
                     setFieldErrors(prev => ({ ...prev, contactNumber: '' }));
+                    
+                    try {
+                        const response = await fetch(`${API_URL}/admin/auth/check-contact`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ contact_number: formData.contactNumber }),
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success && !data.isAvailable) {
+                            setFieldErrors(prev => ({ ...prev, contactNumber: 'This contact number is already registered' }));
+                        } else if (data.success && data.isAvailable) {
+                            setFieldErrors(prev => ({ ...prev, contactNumber: '' }));
+                        }
+                    } catch (err) {
+                        console.error('Error checking contact number availability:', err);
+                        // Don't show error to user, just log it
+                    } finally {
+                        setIsCheckingContact(false);
+                    }
                 }
             } else {
                 setFieldErrors(prev => ({ ...prev, contactNumber: '' }));
+                setIsCheckingContact(false);
             }
         }, 500);
 
-        return () => clearTimeout(timer);
+        return () => {
+            clearTimeout(timer);
+            setIsCheckingContact(false);
+        };
     }, [formData.contactNumber]);
 
     useEffect(() => {
@@ -289,8 +352,14 @@ function AdminSignUp() {
                                 disabled={isLoading}
                                 className="text-white text-md font-light border border-white rounded-lg px-4 py-3 bg-transparent placeholder-white disabled:opacity-50 w-full"
                             />
+                            {isCheckingEmail && !fieldErrors.email && (
+                                <p className="text-yellow-200 text-xs mt-1">Checking email availability...</p>
+                            )}
                             {fieldErrors.email && (
                                 <p className="text-red-200 text-xs mt-1">{fieldErrors.email}</p>
+                            )}
+                            {!isCheckingEmail && !fieldErrors.email && formData.email && formData.email.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) && (
+                                <p className="text-green-200 text-xs mt-1">Email is available</p>
                             )}
                         </div>
 
@@ -305,8 +374,14 @@ function AdminSignUp() {
                                 disabled={isLoading}
                                 className="text-white text-md font-light border border-white rounded-lg px-4 py-3 bg-transparent placeholder-white disabled:opacity-50 w-full"
                             />
+                            {isCheckingContact && !fieldErrors.contactNumber && (
+                                <p className="text-yellow-200 text-xs mt-1">Checking contact number availability...</p>
+                            )}
                             {fieldErrors.contactNumber && (
                                 <p className="text-red-200 text-xs mt-1">{fieldErrors.contactNumber}</p>
+                            )}
+                            {!isCheckingContact && !fieldErrors.contactNumber && formData.contactNumber && formData.contactNumber.replace(/[^0-9]/g, '').length >= 10 && (
+                                <p className="text-green-200 text-xs mt-1">Contact number is available</p>
                             )}
                         </div>
 

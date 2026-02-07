@@ -14,7 +14,8 @@ export async function createUserCustomerTable(client: Client) {
       monthly_triggers integer DEFAULT 0,
       successful_triggers integer DEFAULT 0,
       failed_triggers integer DEFAULT 0,
-      date_created timestamptz DEFAULT now()
+      date_created timestamptz DEFAULT now(),
+      updated_at timestamptz DEFAULT now()
     );
   `);
   console.log(chalk.green('[DATABASE] user_customers table created successfully!'));

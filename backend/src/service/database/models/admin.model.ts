@@ -12,6 +12,7 @@ export async function createAdminTable(client: Client) {
       contact_number text,
       password text NOT NULL,
       date_created timestamptz DEFAULT now(),
+      updated_at timestamptz DEFAULT now(),
       status text CHECK (status IN ('active','inactive','banned')) DEFAULT 'active'
     );
   `);
