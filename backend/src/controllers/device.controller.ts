@@ -4,11 +4,20 @@ import chalk from 'chalk';
 
 console.log(chalk.bgGreen.black('[CONTROLLER] Device controller loaded'));
 
-interface PairDeviceDto {
+interface RegisterDeviceDto {
   email: string;
   device_name: string;
   device_type: string;
-  device_address?: string;
+  device_address: string;
+}
+
+interface AutoDetectDevicesDto {
+  email: string;
+  devices: Array<{
+    device_name: string;
+    device_address: string;
+    device_type: string;
+  }>;
 }
 
 interface UpdateDeviceDto {
@@ -27,18 +36,25 @@ interface DisconnectDeviceDto {
 export class DeviceController {
   constructor(private readonly dbService: DatabaseService) {}
 
-  @Post('pair')
-  async pairDevice(@Body() body: PairDeviceDto) {
+  @Post('register')
+  async registerDevice(@Body() body: RegisterDeviceDto) {
     const client = this.dbService.getClient();
 
     try {
-      console.log(chalk.blue('[DEVICE] Pairing device request:'), body);
+      console.log(chalk.blue('[DEVICE] Registering device request:'), body);
 
       // Validate input
       if (!body.device_name || body.device_name.trim().length === 0) {
         return {
           success: false,
           message: 'Device name cannot be empty',
+        };
+      }
+
+      if (!body.device_address || body.device_address.trim().length === 0) {
+        return {
+          success: false,
+          message: 'Device address cannot be empty',
         };
       }
 
@@ -57,25 +73,24 @@ export class DeviceController {
 
       const customerId = customerResult.rows[0].customer_id;
 
-      // Check if device already exists for this user
+      // Check if device already exists for this user (by device_address)
       const existingDevice = await client.query(
-        'SELECT device_id FROM devices WHERE customer_id = $1 AND device_name = $2',
-        [customerId, body.device_name],
+        'SELECT device_id FROM devices WHERE customer_id = $1 AND device_address = $2',
+        [customerId, body.device_address],
       );
 
       if (existingDevice.rows.length > 0) {
         // Update existing device
         const updateResult = await client.query(
           `UPDATE devices 
-           SET device_type = $1, 
-               device_address = $2, 
-               paired_at = NOW(), 
+           SET device_name = $1, 
+               device_type = $2, 
                last_connected = NOW(),
                is_active = true,
                updated_at = NOW()
            WHERE device_id = $3
            RETURNING *`,
-          [body.device_type, body.device_address, existingDevice.rows[0].device_id],
+          [body.device_name, body.device_type, existingDevice.rows[0].device_id],
         );
 
         console.log(chalk.green('[DEVICE] Device updated successfully'));
@@ -91,20 +106,98 @@ export class DeviceController {
         `INSERT INTO devices (customer_id, device_name, device_type, device_address, paired_at, last_connected, is_active, created_at, updated_at)
          VALUES ($1, $2, $3, $4, NOW(), NOW(), true, NOW(), NOW())
          RETURNING *`,
-        [customerId, body.device_name, body.device_type, body.device_address || null],
+        [customerId, body.device_name, body.device_type, body.device_address],
       );
 
-      console.log(chalk.green('[DEVICE] Device paired successfully'));
+      console.log(chalk.green('[DEVICE] Device registered successfully'));
       return {
         success: true,
-        message: 'Device paired successfully',
+        message: 'Device registered successfully',
         device: result.rows[0],
       };
     } catch (error) {
-      console.error(chalk.red('[DEVICE] Error pairing device:'), error);
+      console.error(chalk.red('[DEVICE] Error registering device:'), error);
       return {
         success: false,
-        message: 'Failed to pair device',
+        message: 'Failed to register device',
+        error: error.message,
+      };
+    }
+  }
+
+  @Post('auto-detect')
+  async autoDetectDevices(@Body() body: AutoDetectDevicesDto) {
+    const client = this.dbService.getClient();
+
+    try {
+      console.log(chalk.blue('[DEVICE] Auto-detecting devices for:'), body.email);
+      console.log(chalk.blue('[DEVICE] Detected devices:'), body.devices);
+
+      // Get customer_id from email
+      const customerResult = await client.query(
+        'SELECT customer_id FROM user_customers WHERE email = $1',
+        [body.email],
+      );
+
+      if (customerResult.rows.length === 0) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+
+      const customerId = customerResult.rows[0].customer_id;
+      const registeredDevices: any[] = [];
+
+      // Process each detected device
+      for (const device of body.devices) {
+        if (!device.device_address || !device.device_name) {
+          continue;
+        }
+
+        // Check if device already exists
+        const existingDevice = await client.query(
+          'SELECT device_id FROM devices WHERE customer_id = $1 AND device_address = $2',
+          [customerId, device.device_address],
+        );
+
+        if (existingDevice.rows.length > 0) {
+          // Update existing device
+          const updateResult = await client.query(
+            `UPDATE devices 
+             SET device_name = $1, 
+                 device_type = $2, 
+                 last_connected = NOW(),
+                 is_active = true,
+                 updated_at = NOW()
+             WHERE device_id = $3
+             RETURNING *`,
+            [device.device_name, device.device_type, existingDevice.rows[0].device_id],
+          );
+          registeredDevices.push(updateResult.rows[0]);
+        } else {
+          // Insert new device
+          const insertResult = await client.query(
+            `INSERT INTO devices (customer_id, device_name, device_type, device_address, paired_at, last_connected, is_active, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, NOW(), NOW(), true, NOW(), NOW())
+             RETURNING *`,
+            [customerId, device.device_name, device.device_type, device.device_address],
+          );
+          registeredDevices.push(insertResult.rows[0]);
+        }
+      }
+
+      console.log(chalk.green(`[DEVICE] Successfully processed ${registeredDevices.length} devices`));
+      return {
+        success: true,
+        message: `Successfully detected and registered ${registeredDevices.length} device(s)`,
+        devices: registeredDevices,
+      };
+    } catch (error) {
+      console.error(chalk.red('[DEVICE] Error auto-detecting devices:'), error);
+      return {
+        success: false,
+        message: 'Failed to auto-detect devices',
         error: error.message,
       };
     }

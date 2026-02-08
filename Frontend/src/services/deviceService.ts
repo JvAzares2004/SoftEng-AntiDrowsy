@@ -11,9 +11,9 @@ export interface Device {
 }
 
 class DeviceService {
-  async pairDevice(email: string, deviceName: string, deviceType: string, deviceAddress?: string): Promise<any> {
+  async registerDevice(email: string, deviceName: string, deviceType: string, deviceAddress: string): Promise<any> {
     try {
-      const response = await fetch(`${API_URL}/device/pair`, {
+      const response = await fetch(`${API_URL}/device/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -28,7 +28,27 @@ class DeviceService {
 
       return await response.json();
     } catch (error) {
-      console.error('Error pairing device:', error);
+      console.error('Error registering device:', error);
+      throw error;
+    }
+  }
+
+  async autoDetectDevices(email: string, devices: Array<{ device_name: string; device_address: string; device_type: string }>): Promise<any> {
+    try {
+      const response = await fetch(`${API_URL}/device/auto-detect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          devices,
+        }),
+      });
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error auto-detecting devices:', error);
       throw error;
     }
   }
