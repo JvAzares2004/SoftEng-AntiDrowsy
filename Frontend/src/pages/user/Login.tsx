@@ -2,6 +2,7 @@ import DrowsinessLogo from '../../component/img/Drowsiness-Logo.png';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import authService from '../../services/authService';
+import TwoFactorModal from '../../components/TwoFactorModal';
 
 function Login() {
     const navigate = useNavigate();
@@ -11,9 +12,38 @@ function Login() {
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [show2FAModal, setShow2FAModal] = useState(false);
+    const [twoFAError, setTwoFAError] = useState('');
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
+    };
+
+    const handleVerify2FA = async (code: string) => {
+        setTwoFAError('');
+        
+        try {
+            const result = await authService.verify2FA(email, code);
+            
+            if (result.success) {
+                if (rememberMe) {
+                    localStorage.setItem('rememberMe', 'true');
+                }
+                setShow2FAModal(false);
+                navigate('/admin/dashboard');
+            } else {
+                setTwoFAError(result.message || 'Invalid verification code');
+            }
+        } catch (err) {
+            setTwoFAError('Verification failed. Please try again.');
+        }
+    };
+
+    const handleClose2FAModal = () => {
+        setShow2FAModal(false);
+        setTwoFAError('');
+        setEmail('');
+        setPassword('');
     };
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -41,6 +71,10 @@ function Login() {
                 } else {
                     navigate('/user/dashboard');
                 }
+            } else if (result.require2FA) {
+                // Admin login requires 2FA
+                setShow2FAModal(true);
+                setError('');
             } else {
                 setError(result.message || 'Invalid email or password');
             }
@@ -150,6 +184,15 @@ function Login() {
                     </form>
                 </div>
             </div>
+
+            {/* 2FA Modal */}
+            <TwoFactorModal
+                isOpen={show2FAModal}
+                email={email}
+                onVerify={handleVerify2FA}
+                onClose={handleClose2FAModal}
+                error={twoFAError}
+            />
         </div>
     );
 }

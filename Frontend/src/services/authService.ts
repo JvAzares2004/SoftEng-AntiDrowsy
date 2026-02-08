@@ -6,6 +6,7 @@ interface LoginResult {
   success: boolean;
   message?: string;
   role?: 'admin' | 'user';
+  require2FA?: boolean;
 }
 
 const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
@@ -57,7 +58,11 @@ class AuthService {
         
         return { success: true, role: data.role };
       } else {
-        return { success: false, message: data.message || 'Login failed' };
+        return { 
+          success: false, 
+          message: data.message || 'Login failed',
+          require2FA: data.require2FA 
+        };
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -96,6 +101,37 @@ class AuthService {
     }
     
     return false;
+  }
+
+  async verify2FA(email: string, code: string): Promise<LoginResult> {
+    try {
+      const response = await fetch('http://localhost:3000/auth/verify-2fa', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, code }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        this.currentUser = { username: data.user.email };
+        this.lastActivity = Date.now();
+        
+        // Store user data and role
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
+        localStorage.setItem('userRole', data.role);
+        localStorage.setItem('lastActivity', this.lastActivity.toString());
+        
+        return { success: true, role: data.role };
+      } else {
+        return { success: false, message: data.message || '2FA verification failed' };
+      }
+    } catch (error) {
+      console.error('2FA verification error:', error);
+      return { success: false, message: 'Network error. Please try again.' };
+    }
   }
 }
 

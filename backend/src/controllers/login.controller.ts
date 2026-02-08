@@ -1,5 +1,6 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { DatabaseService } from '../service/database/database.service';
+import { EmailService } from '../service/email/email.service';
 import * as bcrypt from 'bcrypt';
 import chalk from 'chalk';
 
@@ -10,9 +11,17 @@ interface LoginDto {
   password: string;
 }
 
+interface Verify2FADto {
+  email: string;
+  code: string;
+}
+
 @Controller('auth')
 export class LoginController {
-  constructor(private readonly dbService: DatabaseService) {}
+  constructor(
+    private readonly dbService: DatabaseService,
+    private readonly emailService: EmailService,
+  ) {}
 
   @Post('login')
   async login(@Body() body: LoginDto) {
@@ -40,6 +49,35 @@ export class LoginController {
             message: 'Admin account is inactive. Please contact support.',
           };
         }
+
+        // For admins, verify password first then send 2FA code
+        const passwordMatches = await bcrypt.compare(body.password, user.password);
+        
+        if (!passwordMatches) {
+          console.log(chalk.red(`[AUTH] Login failed - Incorrect password for admin: ${body.email}`));
+          return { success: false, message: 'Invalid email or password' };
+        }
+
+        // Generate and send 2FA code
+        const code = await this.emailService.sendVerification(user.email);
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        // Store 2FA code in database
+        await client.query(
+          `INSERT INTO verification_codes (email, code, is_customer, expires_at)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (email) 
+           DO UPDATE SET code = $2, expires_at = $4, created_at = CURRENT_TIMESTAMP`,
+          [user.email, code, false, expiresAt],
+        );
+
+        console.log(chalk.yellow(`[AUTH] 2FA code sent to admin: ${user.email}`));
+
+        return {
+          success: false,
+          require2FA: true,
+          message: 'Please check your email for the verification code',
+        };
       }
 
       // 2. If not admin, try user (customer)
@@ -84,6 +122,72 @@ export class LoginController {
     } catch (err) {
       console.error(chalk.red('[ERROR] Login error:'), err);
       return { success: false, message: 'Login error. Please try again.' };
+    }
+  }
+
+  @Post('verify-2fa')
+  async verify2FA(@Body() body: Verify2FADto) {
+    const client = this.dbService.getClient();
+
+    try {
+      // Retrieve the verification code from database
+      const result = await client.query(
+        'SELECT * FROM verification_codes WHERE email = $1 AND is_customer = false',
+        [body.email],
+      );
+
+      if (result.rows.length === 0) {
+        console.log(chalk.red(`[AUTH] 2FA failed - No code found for: ${body.email}`));
+        return { success: false, message: 'Verification code not found or expired' };
+      }
+
+      const record = result.rows[0];
+      const now = new Date();
+      const expiresAt = new Date(record.expires_at);
+
+      // Check if code has expired
+      if (now > expiresAt) {
+        console.log(chalk.red(`[AUTH] 2FA failed - Code expired for: ${body.email}`));
+        await client.query('DELETE FROM verification_codes WHERE email = $1', [body.email]);
+        return { success: false, message: 'Verification code has expired. Please try logging in again.' };
+      }
+
+      // Verify the code
+      if (record.code !== body.code) {
+        console.log(chalk.red(`[AUTH] 2FA failed - Invalid code for: ${body.email}`));
+        return { success: false, message: 'Invalid verification code' };
+      }
+
+      // Code is valid, fetch admin user data
+      const adminResult = await client.query(
+        'SELECT * FROM user_admins WHERE email = $1',
+        [body.email],
+      );
+
+      if (adminResult.rows.length === 0) {
+        return { success: false, message: 'Admin user not found' };
+      }
+
+      const admin = adminResult.rows[0];
+
+      // Delete the used verification code
+      await client.query('DELETE FROM verification_codes WHERE email = $1', [body.email]);
+
+      console.log(chalk.green(`[AUTH] 2FA verification successful for admin: ${admin.email}`));
+
+      return {
+        success: true,
+        role: 'admin',
+        user: {
+          id: admin.admin_id,
+          email: admin.email,
+          firstname: admin.firstname,
+          lastname: admin.lastname,
+        },
+      };
+    } catch (err) {
+      console.error(chalk.red('[ERROR] 2FA verification error:'), err);
+      return { success: false, message: 'Verification error. Please try again.' };
     }
   }
 }
