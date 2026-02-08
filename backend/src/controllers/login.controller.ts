@@ -62,12 +62,15 @@ export class LoginController {
         const code = await this.emailService.sendVerification(user.email);
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
+        console.log(chalk.blue(`[AUTH] Generated code: ${code} for ${user.email}`));
+        console.log(chalk.blue(`[AUTH] Code expires at: ${expiresAt.toISOString()}`));
+
         // Store 2FA code in database
         await client.query(
           `INSERT INTO verification_codes (email, code, is_customer, expires_at)
            VALUES ($1, $2, $3, $4)
            ON CONFLICT (email) 
-           DO UPDATE SET code = $2, expires_at = $4, created_at = CURRENT_TIMESTAMP`,
+           DO UPDATE SET code = $2, is_customer = $3, expires_at = $4, created_at = CURRENT_TIMESTAMP`,
           [user.email, code, false, expiresAt],
         );
 
@@ -130,11 +133,28 @@ export class LoginController {
     const client = this.dbService.getClient();
 
     try {
+      console.log(chalk.blue(`[AUTH] Verifying 2FA for: ${body.email}, code: ${body.code}`));
+
+      // Debug: Check all records for this email
+      const debugResult = await client.query(
+        'SELECT * FROM verification_codes WHERE email = $1',
+        [body.email],
+      );
+      
+      console.log(chalk.blue(`[AUTH] All records for ${body.email}:`), debugResult.rows);
+
       // Retrieve the verification code from database
       const result = await client.query(
         'SELECT * FROM verification_codes WHERE email = $1 AND is_customer = false',
         [body.email],
       );
+
+      console.log(chalk.blue(`[AUTH] Found ${result.rows.length} records for ${body.email}`));
+      
+      if (result.rows.length > 0) {
+        const record = result.rows[0];
+        console.log(chalk.blue(`[AUTH] Stored code: ${record.code}, is_customer: ${record.is_customer}, expires_at: ${record.expires_at}`));
+      }
 
       if (result.rows.length === 0) {
         console.log(chalk.red(`[AUTH] 2FA failed - No code found for: ${body.email}`));

@@ -11,6 +11,7 @@ import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminSettings from './pages/admin/AdminSettings'
 import AdminSignUp from './pages/admin/AdminSignUp'
+import AdminFeedbacks from './pages/admin/AdminFeedbacks'
 
 function App() {
   return (
@@ -41,6 +42,7 @@ function App() {
         element={<AdminLayout />}
       >
         <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="feedbacks" element={<AdminFeedbacks />} />
         <Route path="settings" element={<AdminSettings />} />
       </Route>
     </Routes>

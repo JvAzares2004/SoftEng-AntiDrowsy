@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Get } from '@nestjs/common';
 import { DatabaseService } from '../service/database/database.service';
 import chalk from 'chalk';
 
@@ -73,6 +73,43 @@ export class FeedbackController {
       return {
         success: false,
         message: 'Failed to submit feedback. Please try again.',
+      };
+    }
+  }
+
+  @Get('all')
+  async getAllFeedbacks() {
+    const client = this.dbService.getClient();
+
+    try {
+      const result = await client.query(
+        `SELECT 
+          f.feedback_id,
+          f.feedback_message,
+          f.timestamp,
+          c.customer_id,
+          c.firstname,
+          c.lastname,
+          c.email
+         FROM feedbacks f
+         INNER JOIN user_customers c ON f.customer_id = c.customer_id
+         ORDER BY f.timestamp DESC`,
+      );
+
+      console.log(
+        chalk.green(`[FEEDBACK] Retrieved ${result.rows.length} feedbacks`),
+      );
+
+      return {
+        success: true,
+        feedbacks: result.rows,
+      };
+    } catch (err) {
+      console.error(chalk.red('[ERROR] Get all feedbacks error:'), err);
+      return {
+        success: false,
+        message: 'Failed to retrieve feedbacks',
+        feedbacks: [],
       };
     }
   }
