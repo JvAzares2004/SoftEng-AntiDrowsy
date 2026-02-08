@@ -2,60 +2,58 @@ import { useState, useEffect } from 'react';
 import { useSidebar } from './AdminLayout';
 import BurgerIcon from '../../component/svg/BurgerIcon';
 
-interface AuditLog {
-  log_id: string;
-  user_id: string;
-  user_type: 'admin' | 'user';
-  user_email: string;
-  user_name: string;
-  action: string;
-  details: string | null;
-  ip_address: string | null;
-  user_agent: string | null;
-  created_at: string;
+interface User {
+  customer_id: string;
+  firstname: string;
+  lastname: string;
+  email: string;
+  contact_number: string;
+  date_created: string;
 }
 
-function AdminLogs() {
+function AdminUsers() {
   const { toggleSidebar } = useSidebar();
-  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterUserType, setFilterUserType] = useState<'all' | 'admin' | 'user'>('all');
-  const [filterAction, setFilterAction] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<keyof AuditLog>('created_at');
+  const [sortField, setSortField] = useState<keyof User>('date_created');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const logsPerPage = 50;
+  const usersPerPage = 20;
 
   useEffect(() => {
-    fetchLogs();
+    fetchUsers();
   }, []);
 
   const exportToCSV = () => {
-    if (filteredLogs.length === 0) {
-      alert('No logs to export');
+    if (filteredAndSortedUsers.length === 0) {
+      alert('No users to export');
       return;
     }
 
     // CSV headers
-    const headers = ['Timestamp', 'User Name', 'Email', 'User Type', 'Action', 'Details', 'IP Address'];
+    const headers = ['First Name', 'Last Name', 'Email', 'Contact Number', 'Date Created'];
     
     // CSV rows
-    const rows = filteredLogs.map(log => [
-      formatDate(log.created_at),
-      log.user_name,
-      log.user_email,
-      log.user_type,
-      log.action,
-      log.details || '',
-      log.ip_address || ''
+    const rows = filteredAndSortedUsers.map(user => [
+      user.firstname,
+      user.lastname,
+      user.email,
+      user.contact_number || '',
+      new Date(user.date_created).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
     ]);
 
     // Combine headers and rows
     const csvContent = [
       headers.join(','),
-      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
     ].join('\n');
 
     // Create blob and download
@@ -63,7 +61,7 @@ function AdminLogs() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `audit_logs_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `users_export_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -84,7 +82,10 @@ function AdminLogs() {
         const dataLines = lines.slice(1).filter(line => line.trim());
         
         console.log(`CSV Import: Found ${dataLines.length} rows`);
-        alert(`Successfully read ${dataLines.length} rows from CSV. Import functionality would process these logs.`);
+        
+        // Here you could process the imported data
+        // For now, we'll just show a message
+        alert(`Successfully read ${dataLines.length} rows from CSV. Import functionality would process these users.`);
         
         // Reset file input
         event.target.value = '';
@@ -96,22 +97,22 @@ function AdminLogs() {
     reader.readAsText(file);
   };
 
-  const fetchLogs = async () => {
+  const fetchUsers = async () => {
     setIsLoading(true);
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3000/logs');
+      const response = await fetch('http://localhost:3000/auth/users/statistics');
       const data = await response.json();
 
       if (data.success) {
-        setLogs(data.logs);
+        setUsers(data.users);
       } else {
-        setError(data.message || 'Failed to load audit logs');
+        setError(data.message || 'Failed to load users');
       }
     } catch (err) {
-      console.error('Error fetching audit logs:', err);
-      setError('Failed to load audit logs. Please try again.');
+      console.error('Error fetching users:', err);
+      setError('Failed to load users. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -125,31 +126,10 @@ function AdminLogs() {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
     });
   };
 
-  const getActionBadgeColor = (action: string) => {
-    const colors: { [key: string]: string } = {
-      LOGIN: 'bg-green-100 text-green-800',
-      LOGOUT: 'bg-gray-100 text-gray-800',
-      VERIFY_2FA: 'bg-blue-100 text-blue-800',
-      SIGNUP: 'bg-purple-100 text-purple-800',
-      UPDATE_PROFILE: 'bg-yellow-100 text-yellow-800',
-      DELETE: 'bg-red-100 text-red-800',
-      CREATE: 'bg-green-100 text-green-800',
-      UPDATE: 'bg-yellow-100 text-yellow-800',
-    };
-    return colors[action] || 'bg-gray-100 text-gray-800';
-  };
-
-  const getUserTypeBadgeColor = (userType: string) => {
-    return userType === 'admin'
-      ? 'bg-red-100 text-red-800'
-      : 'bg-blue-100 text-blue-800';
-  };
-
-  const handleSort = (field: keyof AuditLog) => {
+  const handleSort = (field: keyof User) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -158,32 +138,18 @@ function AdminLogs() {
     }
   };
 
-  // Get unique actions for filter
-  const uniqueActions = Array.from(new Set(logs.map(log => log.action))).sort();
-
-  // Filter logs
-  const filteredLogs = logs
-    .filter((log) => {
-      const matchesSearch =
-        log.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.user_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (log.details && log.details.toLowerCase().includes(searchTerm.toLowerCase()));
-
-      const matchesUserType =
-        filterUserType === 'all' || log.user_type === filterUserType;
-
-      const matchesAction =
-        filterAction === 'all' || log.action === filterAction;
-
-      return matchesSearch && matchesUserType && matchesAction;
-    })
+  // Filter and sort users
+  const filteredAndSortedUsers = users
+    .filter(
+      (user) =>
+        user.firstname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.lastname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.contact_number.includes(searchTerm)
+    )
     .sort((a, b) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
-
-      if (aValue === null || aValue === undefined) return 1;
-      if (bValue === null || bValue === undefined) return -1;
 
       if (typeof aValue === 'string' && typeof bValue === 'string') {
         return sortDirection === 'asc'
@@ -191,24 +157,28 @@ function AdminLogs() {
           : bValue.localeCompare(aValue);
       }
 
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+
       return 0;
     });
 
   // Pagination
-  const indexOfLastLog = currentPage * logsPerPage;
-  const indexOfFirstLog = indexOfLastLog - logsPerPage;
-  const currentLogs = filteredLogs.slice(indexOfFirstLog, indexOfLastLog);
-  const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = filteredAndSortedUsers.slice(indexOfFirstUser, indexOfLastUser);
+  const totalPages = Math.ceil(filteredAndSortedUsers.length / usersPerPage);
 
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
   };
 
-  const SortIcon = ({ field }: { field: keyof AuditLog }) => {
+  const SortIcon = ({ field }: { field: keyof User }) => {
     if (sortField !== field) {
       return (
         <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M5 12a1 1 0 102 0V6.414l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L5 6.414V12zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 13.586V8z" />
+          <path d="M5 12a1 1 0 102 0V6.414l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L5 6.414V12zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3- 3a1 1 0 00-1.414-1.414L15 13.586V8z" />
         </svg>
       );
     }
@@ -238,11 +208,16 @@ function AdminLogs() {
 
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-800">Audit Logs</h1>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">Users</h1>
+              <p className="text-sm text-gray-600 mt-1">
+                Total: {filteredAndSortedUsers.length} user{filteredAndSortedUsers.length !== 1 ? 's' : ''}
+              </p>
+            </div>
             
             <div className="flex gap-2">
               <button
-                onClick={fetchLogs}
+                onClick={fetchUsers}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -276,15 +251,17 @@ function AdminLogs() {
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Search Bar */}
-            <div className="relative md:col-span-3">
+          {/* Search Bar */}
+          <div className="mb-6">
+            <div className="relative">
               <input
                 type="text"
-                placeholder="Search by name, email, action, or details..."
+                placeholder="Search by name, email, or contact number..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1); // Reset to first page on search
+                }}
                 className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <svg
@@ -301,48 +278,6 @@ function AdminLogs() {
                 />
               </svg>
             </div>
-
-            {/* User Type Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                User Type
-              </label>
-              <select
-                value={filterUserType}
-                onChange={(e) => setFilterUserType(e.target.value as 'all' | 'admin' | 'user')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Users</option>
-                <option value="admin">Admins</option>
-                <option value="user">Users</option>
-              </select>
-            </div>
-
-            {/* Action Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Action
-              </label>
-              <select
-                value={filterAction}
-                onChange={(e) => setFilterAction(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Actions</option>
-                {uniqueActions.map((action) => (
-                  <option key={action} value={action}>
-                    {action}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Results Count */}
-            <div className="flex items-end">
-              <p className="text-sm text-gray-600">
-                Showing {currentLogs.length} of {filteredLogs.length} logs
-              </p>
-            </div>
           </div>
 
           {/* Error Message */}
@@ -356,9 +291,9 @@ function AdminLogs() {
           {isLoading ? (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Loading audit logs...</p>
+              <p className="mt-4 text-gray-600">Loading users...</p>
             </div>
-          ) : currentLogs.length === 0 ? (
+          ) : currentUsers.length === 0 ? (
             <div className="text-center py-12">
               <svg
                 className="mx-auto h-12 w-12 text-gray-400"
@@ -370,104 +305,83 @@ function AdminLogs() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                 />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No logs found</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
               <p className="mt-1 text-sm text-gray-500">
-                {searchTerm || filterUserType !== 'all' || filterAction !== 'all'
-                  ? 'Try adjusting your filters'
-                  : 'No audit logs available yet'}
+                {searchTerm ? 'Try adjusting your search' : 'No registered users yet'}
               </p>
             </div>
           ) : (
             <>
-              {/* Logs Table */}
+              {/* Users Table */}
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('created_at')}
+                        onClick={() => handleSort('firstname')}
                       >
                         <div className="flex items-center gap-2">
-                          Timestamp
-                          <SortIcon field="created_at" />
+                          Name
+                          <SortIcon field="firstname" />
                         </div>
                       </th>
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('user_name')}
+                        onClick={() => handleSort('email')}
                       >
                         <div className="flex items-center gap-2">
-                          User
-                          <SortIcon field="user_name" />
+                          Email
+                          <SortIcon field="email" />
                         </div>
                       </th>
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('user_type')}
+                        onClick={() => handleSort('contact_number')}
                       >
                         <div className="flex items-center gap-2">
-                          Type
-                          <SortIcon field="user_type" />
+                          Contact
+                          <SortIcon field="contact_number" />
                         </div>
                       </th>
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('action')}
+                        onClick={() => handleSort('date_created')}
                       >
                         <div className="flex items-center gap-2">
-                          Action
-                          <SortIcon field="action" />
-                        </div>
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Details
-                      </th>
-                      <th
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('ip_address')}
-                      >
-                        <div className="flex items-center gap-2">
-                          IP Address
-                          <SortIcon field="ip_address" />
+                          Created
+                          <SortIcon field="date_created" />
                         </div>
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {currentLogs.map((log) => (
-                      <tr key={log.log_id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatDate(log.created_at)}
-                        </td>
+                    {currentUsers.map((user) => (
+                      <tr key={user.customer_id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {log.user_name}
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                              {user.firstname.charAt(0).toUpperCase()}
+                              {user.lastname.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {user.firstname} {user.lastname}
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-500">{log.user_email}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getUserTypeBadgeColor(log.user_type)}`}
-                          >
-                            {log.user_type}
-                          </span>
+                          <div className="text-sm text-gray-900">{user.email}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getActionBadgeColor(log.action)}`}
-                          >
-                            {log.action}
-                          </span>
+                          <div className="text-sm text-gray-900">{user.contact_number || '-'}</div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                          {log.details || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {log.ip_address || '-'}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{formatDate(user.date_created)}</div>
                         </td>
                       </tr>
                     ))}
@@ -540,4 +454,4 @@ function AdminLogs() {
   );
 }
 
-export default AdminLogs;
+export default AdminUsers;

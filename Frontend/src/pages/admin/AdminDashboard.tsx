@@ -25,10 +25,76 @@ function AdminDashboard() {
     const [monthlyTriggerCount, setMonthlyTriggerCount] = useState(0)
     const [successfulTriggers, setSuccessfulTriggers] = useState(0)
     const [failedTriggers, setFailedTriggers] = useState(0)
+    const [sortField, setSortField] = useState<string>('')
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
     useEffect(() => {
         fetchUserStatistics()
     }, [])
+
+    const exportToCSV = () => {
+        if (filteredUsers.length === 0) {
+            alert('No user statistics to export')
+            return
+        }
+
+        // CSV headers
+        const headers = ['Name', 'Email', 'Contact', 'Monthly Triggers', 'Successful', 'Failed', 'Date Created']
+        
+        // CSV rows
+        const rows = filteredUsers.map(user => [
+            `${user.firstname} ${user.lastname}`,
+            user.email,
+            user.contact_number || '',
+            user.monthly_triggers,
+            user.successful_triggers,
+            user.failed_triggers,
+            formatDate(user.date_created)
+        ])
+
+        // Combine headers and rows
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n')
+
+        // Create blob and download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        const url = URL.createObjectURL(blob)
+        link.setAttribute('href', url)
+        link.setAttribute('download', `user_statistics_export_${new Date().toISOString().split('T')[0]}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
+    const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        if (!file) return
+
+        const reader = new FileReader()
+        reader.onload = (e) => {
+            try {
+                const text = e.target?.result as string
+                const lines = text.split('\n')
+                
+                // Skip header row
+                const dataLines = lines.slice(1).filter(line => line.trim())
+                
+                console.log(`CSV Import: Found ${dataLines.length} rows`)
+                alert(`Successfully read ${dataLines.length} rows from CSV. Import functionality would process these statistics.`)
+                
+                // Reset file input
+                event.target.value = ''
+            } catch (error) {
+                console.error('Error parsing CSV:', error)
+                alert('Error parsing CSV file. Please check the format.')
+            }
+        }
+        reader.readAsText(file)
+    }
 
     const fetchUserStatistics = async () => {
         setIsLoading(true)
@@ -74,12 +140,80 @@ function AdminDashboard() {
         })
     }
 
-    const filteredUsers = users.filter(
-        (user) =>
-            user.firstname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.lastname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const handleSort = (field: string) => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+        } else {
+            setSortField(field)
+            setSortDirection('asc')
+        }
+    }
+
+    const SortIcon = ({ field }: { field: string }) => {
+        if (sortField !== field) {
+            return (
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+            )
+        }
+        return sortDirection === 'asc' ? (
+            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+        ) : (
+            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+        )
+    }
+
+    const filteredUsers = users
+        .filter(
+            (user) =>
+                user.firstname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.lastname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.email.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .sort((a, b) => {
+            if (!sortField) return 0
+            
+            let aValue: any
+            let bValue: any
+            
+            switch (sortField) {
+                case 'name':
+                    aValue = `${a.firstname} ${a.lastname}`.toLowerCase()
+                    bValue = `${b.firstname} ${b.lastname}`.toLowerCase()
+                    break
+                case 'email':
+                    aValue = a.email.toLowerCase()
+                    bValue = b.email.toLowerCase()
+                    break
+                case 'monthly_triggers':
+                    aValue = a.monthly_triggers || 0
+                    bValue = b.monthly_triggers || 0
+                    break
+                case 'successful_triggers':
+                    aValue = a.successful_triggers || 0
+                    bValue = b.successful_triggers || 0
+                    break
+                case 'failed_triggers':
+                    aValue = a.failed_triggers || 0
+                    bValue = b.failed_triggers || 0
+                    break
+                case 'date_created':
+                    aValue = new Date(a.date_created).getTime()
+                    bValue = new Date(b.date_created).getTime()
+                    break
+                default:
+                    return 0
+            }
+            
+            if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
+            if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
+            return 0
+        })
 
     return (
         <div>
@@ -119,7 +253,44 @@ function AdminDashboard() {
             {/* Users Statistics Table */}
             <div className="p-4 mt-6">
                 <div className="bg-white rounded-lg shadow-md p-6">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4">User Statistics</h2>
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-2xl font-bold text-gray-800">User Statistics</h2>
+                        
+                        <div className="flex gap-2">
+                            <button
+                                onClick={fetchUserStatistics}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Refresh
+                            </button>
+
+                            <button
+                                onClick={exportToCSV}
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Export CSV
+                            </button>
+
+                            <label className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 cursor-pointer">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                </svg>
+                                Import CSV
+                                <input
+                                    type="file"
+                                    accept=".csv"
+                                    onChange={handleImportCSV}
+                                    className="hidden"
+                                />
+                            </label>
+                        </div>
+                    </div>
                     
                     {/* Search Bar */}
                     <div className="mb-6">
@@ -191,23 +362,59 @@ function AdminDashboard() {
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                User
+                                            <th
+                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                                onClick={() => handleSort('name')}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    User
+                                                    <SortIcon field="name" />
+                                                </div>
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Email
+                                            <th
+                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                                onClick={() => handleSort('email')}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    Email
+                                                    <SortIcon field="email" />
+                                                </div>
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Monthly Triggers
+                                            <th
+                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                                onClick={() => handleSort('monthly_triggers')}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    Monthly Triggers
+                                                    <SortIcon field="monthly_triggers" />
+                                                </div>
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Successful
+                                            <th
+                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                                onClick={() => handleSort('successful_triggers')}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    Successful
+                                                    <SortIcon field="successful_triggers" />
+                                                </div>
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Failed
+                                            <th
+                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                                onClick={() => handleSort('failed_triggers')}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    Failed
+                                                    <SortIcon field="failed_triggers" />
+                                                </div>
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Joined
+                                            <th
+                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                                onClick={() => handleSort('date_created')}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    Joined
+                                                    <SortIcon field="date_created" />
+                                                </div>
                                             </th>
                                         </tr>
                                     </thead>
