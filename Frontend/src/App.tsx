@@ -12,6 +12,7 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminSettings from './pages/admin/AdminSettings'
 import AdminSignUp from './pages/admin/AdminSignUp'
 import AdminFeedbacks from './pages/admin/AdminFeedbacks'
+import AdminLogs from './pages/admin/AdminLogs'
 
 function App() {
   return (
@@ -43,6 +44,7 @@ function App() {
       >
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="feedbacks" element={<AdminFeedbacks />} />
+        <Route path="logs" element={<AdminLogs />} />
         <Route path="settings" element={<AdminSettings />} />
       </Route>
     </Routes>

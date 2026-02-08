@@ -1,13 +1,18 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
 import { DatabaseService } from '../service/database/database.service';
+import { AuditLoggerService } from '../service/audit-logger/audit-logger.service';
 import * as bcrypt from 'bcrypt';
 import chalk from 'chalk';
+import type { Request } from 'express';
 
 console.log(chalk.bgGreen.black('[CONTROLLER] Profile controller loaded'));
 
 @Controller('auth')
 export class ProfileController {
-  constructor(private readonly dbService: DatabaseService) {}
+  constructor(
+    private readonly dbService: DatabaseService,
+    private readonly auditLogger: AuditLoggerService,
+  ) {}
 
   @Get('profile')
   async getProfile(@Query('email') email: string, @Query('role') role: string) {
@@ -59,6 +64,7 @@ export class ProfileController {
       value: string;
       password?: string;
     },
+    @Req() req: Request,
   ) {
     const client = this.dbService.getClient();
 
@@ -98,6 +104,18 @@ export class ProfileController {
         console.log(
           chalk.green(`[AUTH] Password updated for ${role}: ${email}`),
         );
+
+        // Log the password update action
+        await this.auditLogger.log({
+          userId: user.admin_id || user.customer_id,
+          userType: role as 'admin' | 'user',
+          userEmail: email,
+          userName: `${user.firstname} ${user.lastname}`,
+          action: 'UPDATE_PASSWORD',
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+        });
+
         return {
           success: true,
           message: 'Password updated successfully',
@@ -118,6 +136,19 @@ export class ProfileController {
       console.log(
         chalk.green(`[AUTH] ${field} updated for ${role}: ${email}`),
       );
+
+      // Log the profile update action
+      await this.auditLogger.log({
+        userId: user.admin_id || user.customer_id,
+        userType: role as 'admin' | 'user',
+        userEmail: email,
+        userName: `${user.firstname} ${user.lastname}`,
+        action: 'UPDATE_PROFILE',
+        details: `Updated ${field}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+
       return {
         success: true,
         message: `${field} updated successfully`,

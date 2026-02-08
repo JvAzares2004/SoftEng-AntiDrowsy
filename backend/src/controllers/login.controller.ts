@@ -1,8 +1,10 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Req } from '@nestjs/common';
 import { DatabaseService } from '../service/database/database.service';
 import { EmailService } from '../service/email/email.service';
+import { AuditLoggerService } from '../service/audit-logger/audit-logger.service';
 import * as bcrypt from 'bcrypt';
 import chalk from 'chalk';
+import type { Request } from 'express';
 
 console.log(chalk.bgGreen.black('[CONTROLLER] Login controller loaded'));
 
@@ -21,10 +23,11 @@ export class LoginController {
   constructor(
     private readonly dbService: DatabaseService,
     private readonly emailService: EmailService,
+    private readonly auditLogger: AuditLoggerService,
   ) {}
 
   @Post('login')
-  async login(@Body() body: LoginDto) {
+  async login(@Body() body: LoginDto, @Req() req: Request) {
     const client = this.dbService.getClient();
 
     try {
@@ -112,6 +115,17 @@ export class LoginController {
 
       console.log(chalk.green(`[AUTH] ${role} login successful: ${user.email}`));
 
+      // Log the login action
+      await this.auditLogger.log({
+        userId: user.admin_id || user.customer_id,
+        userType: role as 'admin' | 'user',
+        userEmail: user.email,
+        userName: `${user.firstname} ${user.lastname}`,
+        action: 'LOGIN',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+
       return {
         success: true,
         role,
@@ -129,7 +143,7 @@ export class LoginController {
   }
 
   @Post('verify-2fa')
-  async verify2FA(@Body() body: Verify2FADto) {
+  async verify2FA(@Body() body: Verify2FADto, @Req() req: Request) {
     const client = this.dbService.getClient();
 
     try {
@@ -194,6 +208,17 @@ export class LoginController {
       await client.query('DELETE FROM verification_codes WHERE email = $1', [body.email]);
 
       console.log(chalk.green(`[AUTH] 2FA verification successful for admin: ${admin.email}`));
+
+      // Log the 2FA verification
+      await this.auditLogger.log({
+        userId: admin.admin_id,
+        userType: 'admin',
+        userEmail: admin.email,
+        userName: `${admin.firstname} ${admin.lastname}`,
+        action: 'VERIFY_2FA',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
 
       return {
         success: true,

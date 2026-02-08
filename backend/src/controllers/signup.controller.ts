@@ -1,8 +1,10 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Req } from '@nestjs/common';
 import { DatabaseService } from '../service/database/database.service';
+import { AuditLoggerService } from '../service/audit-logger/audit-logger.service';
 import * as bcrypt from 'bcrypt';
 import chalk from 'chalk';
 import { EmailService } from '../service/email/email.service';
+import type { Request } from 'express';
 
 console.log(chalk.bgGreen.black('[CONTROLLER] SignUp user controller loaded'));
 
@@ -19,6 +21,7 @@ export class SignUpController {
   constructor(
     private readonly dbService: DatabaseService,
     private readonly emailService: EmailService,
+    private readonly auditLogger: AuditLoggerService,
   ) {}
 
   @Post('check-email')
@@ -156,7 +159,7 @@ export class SignUpController {
   }
 
   @Post('signup')
-  async signUp(@Body() signUpDto: SignUpDto) {
+  async signUp(@Body() signUpDto: SignUpDto, @Req() req: Request) {
     const client = this.dbService.getClient();
 
     try {
@@ -186,10 +189,23 @@ export class SignUpController {
         chalk.green(`[AUTH] New user registered: ${signUpDto.email}`),
       );
 
+      const newUser = result.rows[0];
+
+      // Log the signup action
+      await this.auditLogger.log({
+        userId: newUser.customer_id,
+        userType: 'user',
+        userEmail: newUser.email,
+        userName: `${newUser.firstname} ${newUser.lastname}`,
+        action: 'SIGNUP',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+
       return {
         success: true,
         message: 'Account created successfully',
-        user: result.rows[0],
+        user: newUser,
       };
     } catch (error) {
       console.error(chalk.red('[ERROR] Creating user:'), error);

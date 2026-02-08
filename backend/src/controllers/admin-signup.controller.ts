@@ -1,7 +1,9 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Req } from '@nestjs/common';
 import { DatabaseService } from '../service/database/database.service';
+import { AuditLoggerService } from '../service/audit-logger/audit-logger.service';
 import * as bcrypt from 'bcrypt';
 import chalk from 'chalk';
+import type { Request } from 'express';
 
 console.log(chalk.bgGreen.black('[CONTROLLER] Admin SignUp controller loaded'));
 
@@ -15,7 +17,10 @@ interface AdminSignUpDto {
 
 @Controller('admin/auth')
 export class AdminSignUpController {
-  constructor(private readonly dbService: DatabaseService) {}
+  constructor(
+    private readonly dbService: DatabaseService,
+    private readonly auditLogger: AuditLoggerService,
+  ) {}
 
   @Post('check-email')
   async checkEmail(@Body() body: { email: string }) {
@@ -66,7 +71,7 @@ export class AdminSignUpController {
   }
 
   @Post('signup')
-  async signUp(@Body() signUpDto: AdminSignUpDto) {
+  async signUp(@Body() signUpDto: AdminSignUpDto, @Req() req: Request) {
     const client = this.dbService.getClient();
     const { firstname, lastname, contact_number, email, password } = signUpDto;
 
@@ -105,6 +110,17 @@ export class AdminSignUpController {
           `[AUTH] Admin account created successfully for ${newAdmin.email}`,
         ),
       );
+
+      // Log the admin signup action
+      await this.auditLogger.log({
+        userId: newAdmin.admin_id,
+        userType: 'admin',
+        userEmail: newAdmin.email,
+        userName: `${newAdmin.firstname} ${newAdmin.lastname}`,
+        action: 'ADMIN_SIGNUP',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
 
       return {
         success: true,

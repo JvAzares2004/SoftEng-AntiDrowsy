@@ -1,6 +1,8 @@
-import { Body, Controller, Post, Get } from '@nestjs/common';
+import { Body, Controller, Post, Get, Req } from '@nestjs/common';
 import { DatabaseService } from '../service/database/database.service';
+import { AuditLoggerService } from '../service/audit-logger/audit-logger.service';
 import chalk from 'chalk';
+import type { Request } from 'express';
 
 console.log(chalk.bgGreen.black('[CONTROLLER] Feedback controller loaded'));
 
@@ -11,10 +13,13 @@ interface FeedbackDto {
 
 @Controller('feedback')
 export class FeedbackController {
-  constructor(private readonly dbService: DatabaseService) {}
+  constructor(
+    private readonly dbService: DatabaseService,
+    private readonly auditLogger: AuditLoggerService,
+  ) {}
 
   @Post('submit')
-  async submitFeedback(@Body() body: FeedbackDto) {
+  async submitFeedback(@Body() body: FeedbackDto, @Req() req: Request) {
     const client = this.dbService.getClient();
 
     try {
@@ -48,6 +53,15 @@ export class FeedbackController {
       }
 
       const customerId = customerResult.rows[0].customer_id;
+      const customer = customerResult.rows[0];
+
+      // Get full customer details for audit log
+      const fullCustomerResult = await client.query(
+        'SELECT firstname, lastname FROM user_customers WHERE customer_id = $1',
+        [customerId],
+      );
+
+      const customerDetails = fullCustomerResult.rows[0];
 
       // Use parameterized query to prevent SQL injection
       const result = await client.query(
@@ -62,6 +76,18 @@ export class FeedbackController {
           `[FEEDBACK] New feedback submitted from customer_id: ${customerId}`,
         ),
       );
+
+      // Log the feedback submission action
+      await this.auditLogger.log({
+        userId: customerId,
+        userType: 'user',
+        userEmail: body.email,
+        userName: `${customerDetails.firstname} ${customerDetails.lastname}`,
+        action: 'SUBMIT_FEEDBACK',
+        details: `Feedback length: ${body.feedback_message.trim().length} characters`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
 
       return {
         success: true,
