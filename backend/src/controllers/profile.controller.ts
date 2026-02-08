@@ -127,4 +127,44 @@ export class ProfileController {
       return { success: false, message: 'Error updating profile' };
     }
   }
+
+  @Get('users/statistics')
+  async getUsersStatistics() {
+    const client = this.dbService.getClient();
+
+    try {
+      const result = await client.query(`
+        SELECT 
+          c.customer_id,
+          c.firstname,
+          c.lastname,
+          c.email,
+          c.contact_number,
+          c.monthly_triggers,
+          c.successful_triggers,
+          c.failed_triggers,
+          c.date_created,
+          COUNT(t.trigger_id) as total_trigger_records
+        FROM user_customers c
+        LEFT JOIN triggers t ON c.customer_id = t.customer_id
+        GROUP BY c.customer_id, c.firstname, c.lastname, c.email, c.contact_number, 
+                 c.monthly_triggers, c.successful_triggers, c.failed_triggers, c.date_created
+        ORDER BY c.date_created DESC
+      `);
+
+      console.log(chalk.green(`[ADMIN] Retrieved statistics for ${result.rows.length} users`));
+
+      return {
+        success: true,
+        users: result.rows,
+      };
+    } catch (error) {
+      console.error(chalk.red('[ERROR] Fetching user statistics:'), error);
+      return {
+        success: false,
+        message: 'Error fetching user statistics',
+        users: [],
+      };
+    }
+  }
 }
