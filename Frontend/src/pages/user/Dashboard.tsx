@@ -7,6 +7,7 @@ import PlayIcon from '../../component/svg/PlayerIcon'
 import FullscreenIcon from '../../component/svg/FullscreenIcon'
 import CameraIcon from '../../component/svg/CameraIcon'
 import { useSidebar } from './MainLayout'
+import bluetoothService from '../../services/bluetoothService'
 
 function Dashboard() {
     const { toggleSidebar } = useSidebar()
@@ -21,16 +22,13 @@ function Dashboard() {
     const [isCameraActive, setIsCameraActive] = useState(false)
     const [cameraError, setCameraError] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(true)
-    const [monthlyTriggerCount, setMonthlyTriggerCount] = useState(0)
-    const [successfulTriggers, setSuccessfulTriggers] = useState(0)
-    const [failedTriggers, setFailedTriggers] = useState(0)
-    const [triggerHistory, setTriggerHistory] = useState([
-        { id: 1, timestamp: '2026-02-03 14:32:15', status: 'success', alertType: 'Motor Vibration', severity: 'High' },
-        { id: 2, timestamp: '2026-02-03 12:15:42', status: 'success', alertType: 'Buzzer', severity: 'Very High' },
-        { id: 3, timestamp: '2026-02-03 10:08:30', status: 'failed', alertType: 'Motor Vibration', severity: 'Medium' },
-        { id: 4, timestamp: '2026-02-02 18:45:12', status: 'success', alertType: 'Buzzer', severity: 'High' },
-        { id: 5, timestamp: '2026-02-02 15:22:05', status: 'failed', alertType: 'Motor Vibration', severity: 'Low' },
-    ])
+
+    // Bluetooth state
+    const [isBluetoothConnected, setIsBluetoothConnected] = useState(false)
+    const [bluetoothDeviceName, setBluetoothDeviceName] = useState<string | null>(null)
+    const [bluetoothError, setBluetoothError] = useState<string | null>(null)
+    const [isConnecting, setIsConnecting] = useState(false)
+    const [hasPromptedBluetooth, setHasPromptedBluetooth] = useState(false)
 
     // Helper function to get dynamic color based on volume
     const getVolumeColor = (volume: number) => {
@@ -40,14 +38,91 @@ function Dashboard() {
         return '#EF4444' // Red - Very High
     }
 
-    const handleVolumeChange = (index: number, newValue: number) => {
+    // Handle slider volume change
+    const handleVolumeSliderChange = (index: number, newValue: number) => {
         const newVolumes = [...volumes];
         newVolumes[index].volume = newValue;
         setVolumes(newVolumes);
     }
 
-    const handleTest = (index: number) => {
-        console.log(`${volumes[index].name}: ${volumes[index].volume}%`);
+    // Handle volume test
+    const handleVolumeTest = async (index: number) => {
+        const deviceType = volumes[index].type;
+        const duration = Math.round((volumes[index].volume / 100) * 3000); // Scale to 0-3 seconds
+        
+        console.log(`Testing ${volumes[index].name}: ${volumes[index].volume}% (${duration}ms)`);
+
+        // Check Bluetooth connection
+        if (!isBluetoothConnected) {
+            setBluetoothError('Please connect to ESP32 device first');
+            return;
+        }
+
+        try {
+            setBluetoothError(null);
+            
+            if (deviceType === "buzzer") {
+                await bluetoothService.testBuzzer(duration);
+            } else if (deviceType === "motor") {
+                await bluetoothService.testVibrator(duration);
+            }
+            
+            console.log(`Test completed successfully`);
+        } catch (error: any) {
+            console.error('Test error:', error);
+            setBluetoothError(`Test failed: ${error.message}`);
+        }
+    }
+
+    // Connect to Bluetooth device
+    const connectBluetooth = async () => {
+        try {
+            setIsConnecting(true);
+            setBluetoothError(null);
+            
+            if (!bluetoothService.isSupported()) {
+                setBluetoothError('Web Bluetooth is not supported in this browser. Please use Chrome, Edge, or Opera.');
+                return;
+            }
+
+            const connected = await bluetoothService.connect();
+            
+            if (connected) {
+                setIsBluetoothConnected(true);
+                setBluetoothDeviceName(bluetoothService.getDeviceName());
+                console.log('Bluetooth connected successfully');
+                
+                // Setup status callback
+                bluetoothService.onStatusChange((status) => {
+                    console.log('Device status:', status);
+                });
+            }
+        } catch (error: any) {
+            console.error('Bluetooth connection error:', error);
+            
+            // Don't show error if user cancelled the connection
+            if (error.message && error.message.includes('cancelled')) {
+                console.log('User cancelled Bluetooth connection');
+            } else {
+                setBluetoothError(error.message);
+            }
+            
+            setIsBluetoothConnected(false);
+        } finally {
+            setIsConnecting(false);
+        }
+    }
+
+    // Disconnect from Bluetooth device
+    const disconnectBluetooth = async () => {
+        try {
+            await bluetoothService.disconnect();
+            setIsBluetoothConnected(false);
+            setBluetoothDeviceName(null);
+            console.log('Bluetooth disconnected');
+        } catch (error: any) {
+            console.error('Disconnect error:', error);
+        }
     }
 
     // Initialize camera on component mount
@@ -66,6 +141,42 @@ function Dashboard() {
             mounted = false
             stopCamera()
         }
+    }, [])
+
+    // Auto-prompt Bluetooth connection on mount if not connected
+    useEffect(() => {
+        const checkBluetoothConnection = async () => {
+            // Don't prompt again if we already did
+            if (hasPromptedBluetooth) {
+                return;
+            }
+
+            // Check if Web Bluetooth is supported
+            if (!bluetoothService.isSupported()) {
+                console.log('Web Bluetooth not supported');
+                setBluetoothError('Web Bluetooth is not supported. Please use Chrome, Edge, or Opera.');
+                setHasPromptedBluetooth(true);
+                return;
+            }
+
+            // Check if already connected
+            if (!bluetoothService.isConnected()) {
+                console.log('Not connected to Bluetooth device. Prompting user...');
+                
+                // Small delay to let the page load first
+                setTimeout(async () => {
+                    setHasPromptedBluetooth(true);
+                    await connectBluetooth();
+                }, 1500);
+            } else {
+                // Already connected, update state
+                setIsBluetoothConnected(true);
+                setBluetoothDeviceName(bluetoothService.getDeviceName());
+                setHasPromptedBluetooth(true);
+            }
+        };
+
+        checkBluetoothConnection();
     }, [])
 
     const startCamera = async () => {
@@ -156,30 +267,64 @@ function Dashboard() {
                 <BurgerIcon className="text-[#C52233]"/>
             </button>
 
-            {/* Trigger Counters */}
-            <div className="mt-6 p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Monthly Trigger Counter */}
-                    <div className="flex flex-col items-center justify-center p-6 border rounded-xl bg-gradient-to-br from-[#C52233] to-red-700 shadow-lg">
-                        <h2 className="text-white text-lg font-semibold mb-2">Monthly Triggers</h2>
-                        <div className="text-white text-6xl font-bold mb-1">{monthlyTriggerCount}</div>
-                        <p className="text-white/80 text-sm">Total this month</p>
+            {/* Bluetooth Connection Section */}
+            <div className="mb-6 p-4 border rounded-xl bg-white shadow-md">
+                <h2 className="text-xl font-bold text-slate-800 mb-4">ESP32 Device Connection</h2>
+                
+                {!isBluetoothConnected ? (
+                    <div className="flex flex-col gap-3">
+                        <button
+                            onClick={connectBluetooth}
+                            disabled={isConnecting}
+                            className={`${
+                                isConnecting 
+                                    ? 'bg-gray-400 cursor-not-allowed' 
+                                    : 'bg-blue-600 hover:bg-blue-700'
+                            } text-white font-semibold py-3 px-6 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2`}
+                        >
+                            {isConnecting ? (
+                                <>
+                                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                                    <span>Connecting...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/>
+                                    </svg>
+                                    <span>Connect to ESP32</span>
+                                </>
+                            )}
+                        </button>
+                        <p className="text-sm text-gray-600 text-center">
+                            Click to connect to your ESP32-Drowsiness device via Bluetooth
+                        </p>
                     </div>
+                ) : (
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-center gap-3">
+                                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                                <div>
+                                    <p className="font-semibold text-green-800">Connected</p>
+                                    <p className="text-sm text-green-600">{bluetoothDeviceName || 'ESP32 Device'}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={disconnectBluetooth}
+                                className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-all"
+                            >
+                                Disconnect
+                            </button>
+                        </div>
+                    </div>
+                )}
 
-                    {/* Successful Triggers */}
-                    <div className="flex flex-col items-center justify-center p-6 border rounded-xl bg-gradient-to-br from-green-500 to-green-700 shadow-lg">
-                        <h2 className="text-white text-lg font-semibold mb-2">Successful Triggers</h2>
-                        <div className="text-white text-6xl font-bold mb-1">{successfulTriggers}</div>
-                        <p className="text-white/80 text-sm">Alerts delivered</p>
+                {bluetoothError && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm text-red-700">⚠️ {bluetoothError}</p>
                     </div>
-
-                    {/* Failed Triggers */}
-                    <div className="flex flex-col items-center justify-center p-6 border rounded-xl bg-gradient-to-br from-orange-500 to-orange-700 shadow-lg">
-                        <h2 className="text-white text-lg font-semibold mb-2">Failed/False Triggers</h2>
-                        <div className="text-white text-6xl font-bold mb-1">{failedTriggers}</div>
-                        <p className="text-white/80 text-sm">Alert failures</p>
-                    </div>
-                </div>
+                )}
             </div>
 
             <div className="flex flex-col gap-6 mt-6 p-4">
@@ -230,7 +375,7 @@ function Dashboard() {
                                     min={0}
                                     max={100}
                                     value={vol.volume}
-                                    onChange={(e) => handleVolumeChange(index, Number(e.target.value))}
+                                    onChange={(e) => handleVolumeSliderChange(index, Number(e.target.value))}
                                     className="w-full h-2 rounded-full appearance-none cursor-pointer"
                                     style={{
                                         background: 'Gray'
@@ -264,8 +409,14 @@ function Dashboard() {
                             
                             {/* Test button - ORIGINAL RED COLOR */}
                             <button 
-                                onClick={() => handleTest(index)}
-                                className="bg-[#C52233] hover:bg-red-700 text-white border rounded-xl flex flex-row items-center justify-center gap-3 p-4 cursor-pointer font-bold text-lg shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95"
+                                onClick={() => handleVolumeTest(index)}
+                                disabled={!isBluetoothConnected}
+                                className={`${
+                                    !isBluetoothConnected 
+                                        ? 'bg-gray-400 cursor-not-allowed' 
+                                        : 'bg-[#C52233] hover:bg-red-700 hover:scale-105 active:scale-95'
+                                } text-white border rounded-xl flex flex-row items-center justify-center gap-3 p-4 font-bold text-lg shadow-lg hover:shadow-xl transition-all`}
+                                title={!isBluetoothConnected ? 'Connect to ESP32 device first' : 'Test this device'}
                             >
                                 <PlayIcon className="w-5 h-5" />
                                 <span>Test</span>
@@ -335,60 +486,6 @@ function Dashboard() {
                                 )}
                             </div>
                         )}
-                    </div>
-                </div>
-
-                {/* Trigger History */}
-                <div className="flex flex-col border rounded-xl p-6 gap-4 bg-white shadow-md">
-                    <h2 className="text-2xl font-bold text-slate-800 mb-2">Trigger History</h2>
-                    
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b-2 border-slate-200">
-                                    <th className="text-left py-3 px-4 text-slate-600 font-semibold">Timestamp</th>
-                                    <th className="text-left py-3 px-4 text-slate-600 font-semibold">Alert Type</th>
-                                    <th className="text-left py-3 px-4 text-slate-600 font-semibold">Severity</th>
-                                    <th className="text-left py-3 px-4 text-slate-600 font-semibold">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {triggerHistory.map((trigger) => (
-                                    <tr key={trigger.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                        <td className="py-3 px-4 text-slate-700">{trigger.timestamp}</td>
-                                        <td className="py-3 px-4 text-slate-700">{trigger.alertType}</td>
-                                        <td className="py-3 px-4">
-                                            <span 
-                                                className="px-3 py-1 rounded-full text-sm font-semibold"
-                                                style={{
-                                                    backgroundColor: 
-                                                        trigger.severity === 'Low' ? '#10B98120' :
-                                                        trigger.severity === 'Medium' ? '#F59E0B20' :
-                                                        trigger.severity === 'High' ? '#FB923C20' : '#EF444420',
-                                                    color:
-                                                        trigger.severity === 'Low' ? '#10B981' :
-                                                        trigger.severity === 'Medium' ? '#F59E0B' :
-                                                        trigger.severity === 'High' ? '#FB923C' : '#EF4444'
-                                                }}
-                                            >
-                                                {trigger.severity}
-                                            </span>
-                                        </td>
-                                        <td className="py-3 px-4">
-                                            <span 
-                                                className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                                                    trigger.status === 'success' 
-                                                        ? 'bg-green-100 text-green-700' 
-                                                        : 'bg-orange-100 text-orange-700'
-                                                }`}
-                                            >
-                                                {trigger.status === 'success' ? 'Success' : 'Failed'}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             </div>

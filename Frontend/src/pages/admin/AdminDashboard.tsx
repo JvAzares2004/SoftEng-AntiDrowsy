@@ -2,53 +2,51 @@ import { useState, useEffect } from 'react'
 import BurgerIcon from '../../component/svg/BurgerIcon'
 import { useSidebar } from './AdminLayout'
 
-interface UserStatistics {
+interface User {
   customer_id: string;
   firstname: string;
   lastname: string;
   email: string;
   contact_number: string;
-  monthly_triggers: number;
-  successful_triggers: number;
-  failed_triggers: number;
   date_created: string;
-  total_trigger_records: number;
 }
 
 function AdminDashboard() {
     const { toggleSidebar } = useSidebar()
     
-    const [users, setUsers] = useState<UserStatistics[]>([])
+    const [users, setUsers] = useState<User[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState('')
     const [searchTerm, setSearchTerm] = useState('')
-    const [monthlyTriggerCount, setMonthlyTriggerCount] = useState(0)
-    const [successfulTriggers, setSuccessfulTriggers] = useState(0)
-    const [failedTriggers, setFailedTriggers] = useState(0)
-    const [sortField, setSortField] = useState<string>('')
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+    const [currentPage, setCurrentPage] = useState(1)
+    const [sortField, setSortField] = useState<keyof User>('date_created')
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+    const usersPerPage = 20
+    
+    // Counter states
+    const [totalActiveUsers, setTotalActiveUsers] = useState(0)
+    const [onlineUsers, setOnlineUsers] = useState(0)
+    const [monthlySignups, setMonthlySignups] = useState(0)
 
     useEffect(() => {
-        fetchUserStatistics()
+        fetchUsers()
     }, [])
 
     const exportToCSV = () => {
-        if (filteredUsers.length === 0) {
-            alert('No user statistics to export')
+        if (filteredAndSortedUsers.length === 0) {
+            alert('No users to export')
             return
         }
 
         // CSV headers
-        const headers = ['Name', 'Email', 'Contact', 'Monthly Triggers', 'Successful', 'Failed', 'Date Created']
+        const headers = ['First Name', 'Last Name', 'Email', 'Contact Number', 'Date Created']
         
         // CSV rows
-        const rows = filteredUsers.map(user => [
-            `${user.firstname} ${user.lastname}`,
+        const rows = filteredAndSortedUsers.map(user => [
+            user.firstname,
+            user.lastname,
             user.email,
             user.contact_number || '',
-            user.monthly_triggers,
-            user.successful_triggers,
-            user.failed_triggers,
             formatDate(user.date_created)
         ])
 
@@ -63,7 +61,7 @@ function AdminDashboard() {
         const link = document.createElement('a')
         const url = URL.createObjectURL(blob)
         link.setAttribute('href', url)
-        link.setAttribute('download', `user_statistics_export_${new Date().toISOString().split('T')[0]}.csv`)
+        link.setAttribute('download', `users_export_${new Date().toISOString().split('T')[0]}.csv`)
         link.style.visibility = 'hidden'
         document.body.appendChild(link)
         link.click()
@@ -84,7 +82,7 @@ function AdminDashboard() {
                 const dataLines = lines.slice(1).filter(line => line.trim())
                 
                 console.log(`CSV Import: Found ${dataLines.length} rows`)
-                alert(`Successfully read ${dataLines.length} rows from CSV. Import functionality would process these statistics.`)
+                alert(`Successfully read ${dataLines.length} rows from CSV. Import functionality would process these users.`)
                 
                 // Reset file input
                 event.target.value = ''
@@ -96,7 +94,7 @@ function AdminDashboard() {
         reader.readAsText(file)
     }
 
-    const fetchUserStatistics = async () => {
+    const fetchUsers = async () => {
         setIsLoading(true)
         setError('')
 
@@ -107,40 +105,47 @@ function AdminDashboard() {
             if (data.success) {
                 setUsers(data.users)
                 
-                // Calculate totals
-                const totals = data.users.reduce(
-                    (acc: any, user: UserStatistics) => ({
-                        monthly: acc.monthly + (user.monthly_triggers || 0),
-                        successful: acc.successful + (user.successful_triggers || 0),
-                        failed: acc.failed + (user.failed_triggers || 0),
-                    }),
-                    { monthly: 0, successful: 0, failed: 0 }
-                )
+                // Calculate statistics
+                const total = data.users.length
+                setTotalActiveUsers(total)
                 
-                setMonthlyTriggerCount(totals.monthly)
-                setSuccessfulTriggers(totals.successful)
-                setFailedTriggers(totals.failed)
+                // Calculate monthly signups (current month)
+                const now = new Date()
+                const currentMonth = now.getMonth()
+                const currentYear = now.getFullYear()
+                
+                const monthlyUsers = data.users.filter((user: User) => {
+                    const userDate = new Date(user.date_created)
+                    return userDate.getMonth() === currentMonth && userDate.getFullYear() === currentYear
+                })
+                setMonthlySignups(monthlyUsers.length)
+                
+                // For online users, check if data provides it, otherwise set to 0
+                // This would typically come from backend tracking active sessions
+                setOnlineUsers(data.onlineUsers || 0)
             } else {
-                setError(data.message || 'Failed to load user statistics')
+                setError(data.message || 'Failed to load users')
             }
         } catch (err) {
-            console.error('Error fetching user statistics:', err)
-            setError('Failed to load user statistics. Please try again.')
+            console.error('Error fetching users:', err)
+            setError('Failed to load users. Please try again.')
         } finally {
             setIsLoading(false)
         }
     }
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString)
-        return date.toLocaleDateString('en-US', {
+    const formatDate = (timestamp: string) => {
+        const date = new Date(timestamp)
+        return date.toLocaleString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
         })
     }
 
-    const handleSort = (field: string) => {
+    const handleSort = (field: keyof User) => {
         if (sortField === field) {
             setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
         } else {
@@ -149,116 +154,134 @@ function AdminDashboard() {
         }
     }
 
-    const SortIcon = ({ field }: { field: string }) => {
+    const SortIcon = ({ field }: { field: keyof User }) => {
         if (sortField !== field) {
             return (
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M5 12a1 1 0 102 0V6.414l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L5 6.414V12zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 13.586V8z" />
                 </svg>
             )
         }
+
         return sortDirection === 'asc' ? (
-            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h7a1 1 0 100-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 13.586V8z" />
             </svg>
         ) : (
-            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h5a1 1 0 000-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM13 16a1 1 0 102 0v-5.586l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 101.414 1.414L13 10.414V16z" />
             </svg>
         )
     }
 
-    const filteredUsers = users
+    // Filter and sort users
+    const filteredAndSortedUsers = users
         .filter(
             (user) =>
                 user.firstname.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 user.lastname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                user.email.toLowerCase().includes(searchTerm.toLowerCase())
+                user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.contact_number.includes(searchTerm)
         )
         .sort((a, b) => {
-            if (!sortField) return 0
-            
-            let aValue: any
-            let bValue: any
-            
-            switch (sortField) {
-                case 'name':
-                    aValue = `${a.firstname} ${a.lastname}`.toLowerCase()
-                    bValue = `${b.firstname} ${b.lastname}`.toLowerCase()
-                    break
-                case 'email':
-                    aValue = a.email.toLowerCase()
-                    bValue = b.email.toLowerCase()
-                    break
-                case 'monthly_triggers':
-                    aValue = a.monthly_triggers || 0
-                    bValue = b.monthly_triggers || 0
-                    break
-                case 'successful_triggers':
-                    aValue = a.successful_triggers || 0
-                    bValue = b.successful_triggers || 0
-                    break
-                case 'failed_triggers':
-                    aValue = a.failed_triggers || 0
-                    bValue = b.failed_triggers || 0
-                    break
-                case 'date_created':
-                    aValue = new Date(a.date_created).getTime()
-                    bValue = new Date(b.date_created).getTime()
-                    break
-                default:
-                    return 0
+            const aValue = a[sortField]
+            const bValue = b[sortField]
+
+            if (typeof aValue === 'string' && typeof bValue === 'string') {
+                return sortDirection === 'asc'
+                    ? aValue.localeCompare(bValue)
+                    : bValue.localeCompare(aValue)
             }
-            
-            if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
-            if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
+
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+                return sortDirection === 'asc' ? aValue - bValue : bValue - aValue
+            }
+
             return 0
         })
 
+    // Pagination
+    const indexOfLastUser = currentPage * usersPerPage
+    const indexOfFirstUser = indexOfLastUser - usersPerPage
+    const currentUsers = filteredAndSortedUsers.slice(indexOfFirstUser, indexOfLastUser)
+    const totalPages = Math.ceil(filteredAndSortedUsers.length / usersPerPage)
+
+    const handlePageChange = (pageNumber: number) => {
+        setCurrentPage(pageNumber)
+    }
+
     return (
-        <div>
-            <button 
-                onClick={toggleSidebar}
-                className="flex hover:scale-110 transition-transform cursor-pointer md:hidden mb-4"
-            >
-                <BurgerIcon className="text-[#C52233]"/>
-            </button>
+        <div className="min-h-screen bg-gray-100">
+            {/* Mobile Menu Button */}
+            <div className="p-4 md:p-6">
+                <button
+                    onClick={toggleSidebar}
+                    className="md:hidden mb-4 p-2 rounded-lg hover:bg-gray-100 bg-white shadow-sm"
+                >
+                    <BurgerIcon />
+                </button>
 
-            {/* Trigger Counters */}
-            <div className="mt-6 p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Monthly Trigger Counter */}
-                    <div className="flex flex-col items-center justify-center p-6 border rounded-xl bg-gradient-to-br from-[#C52233] to-red-700 shadow-lg">
-                        <h2 className="text-white text-lg font-semibold mb-2">Monthly Triggers</h2>
-                        <div className="text-white text-6xl font-bold mb-1">{monthlyTriggerCount}</div>
-                        <p className="text-white/80 text-sm">Total this month</p>
+                {/* Statistics Counters */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    {/* Total Active Users */}
+                    <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg shadow-lg p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-blue-100 text-sm font-medium mb-1">Total Active Users</p>
+                                <p className="text-white text-4xl font-bold">{totalActiveUsers}</p>
+                            </div>
+                            <div className="bg-white/20 rounded-full p-3">
+                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Successful Triggers */}
-                    <div className="flex flex-col items-center justify-center p-6 border rounded-xl bg-gradient-to-br from-green-500 to-green-700 shadow-lg">
-                        <h2 className="text-white text-lg font-semibold mb-2">Successful Triggers</h2>
-                        <div className="text-white text-6xl font-bold mb-1">{successfulTriggers}</div>
-                        <p className="text-white/80 text-sm">Alerts delivered</p>
+                    {/* Currently Online Users */}
+                    <div className="bg-gradient-to-br from-green-500 to-green-700 rounded-lg shadow-lg p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-green-100 text-sm font-medium mb-1">Currently Online</p>
+                                <p className="text-white text-4xl font-bold">{onlineUsers}</p>
+                            </div>
+                            <div className="bg-white/20 rounded-full p-3">
+                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z" />
+                                </svg>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Failed Triggers */}
-                    <div className="flex flex-col items-center justify-center p-6 border rounded-xl bg-gradient-to-br from-orange-500 to-orange-700 shadow-lg">
-                        <h2 className="text-white text-lg font-semibold mb-2">Failed/False Triggers</h2>
-                        <div className="text-white text-6xl font-bold mb-1">{failedTriggers}</div>
-                        <p className="text-white/80 text-sm">Alert failures</p>
+                    {/* Monthly Signups */}
+                    <div className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-lg shadow-lg p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-purple-100 text-sm font-medium mb-1">Monthly Signups</p>
+                                <p className="text-white text-4xl font-bold">{monthlySignups}</p>
+                                <p className="text-purple-100 text-xs mt-1">{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+                            </div>
+                            <div className="bg-white/20 rounded-full p-3">
+                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                </svg>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Users Statistics Table */}
-            <div className="p-4 mt-6">
                 <div className="bg-white rounded-lg shadow-md p-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-bold text-gray-800">User Statistics</h2>
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-800">Users</h1>
+                            <p className="text-sm text-gray-600 mt-1">
+                                Total: {filteredAndSortedUsers.length} user{filteredAndSortedUsers.length !== 1 ? 's' : ''}
+                            </p>
+                        </div>
                         
                         <div className="flex gap-2">
                             <button
-                                onClick={fetchUserStatistics}
+                                onClick={fetchUsers}
                                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -291,15 +314,18 @@ function AdminDashboard() {
                             </label>
                         </div>
                     </div>
-                    
+
                     {/* Search Bar */}
                     <div className="mb-6">
                         <div className="relative">
                             <input
                                 type="text"
-                                placeholder="Search by name or email..."
+                                placeholder="Search by name, email, or contact number..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value)
+                                    setCurrentPage(1) // Reset to first page on search
+                                }}
                                 className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                             <svg
@@ -329,9 +355,9 @@ function AdminDashboard() {
                     {isLoading ? (
                         <div className="text-center py-12">
                             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                            <p className="mt-4 text-gray-600">Loading user statistics...</p>
+                            <p className="mt-4 text-gray-600">Loading users...</p>
                         </div>
-                    ) : filteredUsers.length === 0 ? (
+                    ) : currentUsers.length === 0 ? (
                         <div className="text-center py-12">
                             <svg
                                 className="mx-auto h-12 w-12 text-gray-400"
@@ -346,29 +372,25 @@ function AdminDashboard() {
                                     d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                                 />
                             </svg>
-                            <p className="mt-4 text-gray-600">
-                                {searchTerm ? 'No users match your search' : 'No users found'}
+                            <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
+                            <p className="mt-1 text-sm text-gray-500">
+                                {searchTerm ? 'Try adjusting your search' : 'No registered users yet'}
                             </p>
                         </div>
                     ) : (
                         <>
-                            {/* Stats */}
-                            <div className="mb-4 text-sm text-gray-600">
-                                Showing {filteredUsers.length} of {users.length} users
-                            </div>
-
-                            {/* Table */}
+                            {/* Users Table */}
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
                                             <th
                                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                                onClick={() => handleSort('name')}
+                                                onClick={() => handleSort('firstname')}
                                             >
                                                 <div className="flex items-center gap-2">
-                                                    User
-                                                    <SortIcon field="name" />
+                                                    Name
+                                                    <SortIcon field="firstname" />
                                                 </div>
                                             </th>
                                             <th
@@ -382,29 +404,11 @@ function AdminDashboard() {
                                             </th>
                                             <th
                                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                                onClick={() => handleSort('monthly_triggers')}
+                                                onClick={() => handleSort('contact_number')}
                                             >
                                                 <div className="flex items-center gap-2">
-                                                    Monthly Triggers
-                                                    <SortIcon field="monthly_triggers" />
-                                                </div>
-                                            </th>
-                                            <th
-                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                                onClick={() => handleSort('successful_triggers')}
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    Successful
-                                                    <SortIcon field="successful_triggers" />
-                                                </div>
-                                            </th>
-                                            <th
-                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                                onClick={() => handleSort('failed_triggers')}
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    Failed
-                                                    <SortIcon field="failed_triggers" />
+                                                    Contact
+                                                    <SortIcon field="contact_number" />
                                                 </div>
                                             </th>
                                             <th
@@ -412,19 +416,20 @@ function AdminDashboard() {
                                                 onClick={() => handleSort('date_created')}
                                             >
                                                 <div className="flex items-center gap-2">
-                                                    Joined
+                                                    Created
                                                     <SortIcon field="date_created" />
                                                 </div>
                                             </th>
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
-                                        {filteredUsers.map((user) => (
+                                        {currentUsers.map((user) => (
                                             <tr key={user.customer_id} className="hover:bg-gray-50">
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex items-center">
-                                                        <div className="flex-shrink-0 h-10 w-10 bg-[#C52233] rounded-full flex items-center justify-center text-white font-bold">
-                                                            {user.firstname.charAt(0).toUpperCase()}{user.lastname.charAt(0).toUpperCase()}
+                                                        <div className="flex-shrink-0 h-10 w-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                                                            {user.firstname.charAt(0).toUpperCase()}
+                                                            {user.lastname.charAt(0).toUpperCase()}
                                                         </div>
                                                         <div className="ml-4">
                                                             <div className="text-sm font-medium text-gray-900">
@@ -433,30 +438,78 @@ function AdminDashboard() {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {user.email}
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm text-gray-900">{user.email}</div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm font-semibold text-gray-900">{user.monthly_triggers || 0}</div>
+                                                    <div className="text-sm text-gray-900">{user.contact_number || '-'}</div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                                        {user.successful_triggers || 0}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
-                                                        {user.failed_triggers || 0}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {formatDate(user.date_created)}
+                                                    <div className="text-sm text-gray-900">{formatDate(user.date_created)}</div>
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="mt-6 flex justify-center items-center space-x-2">
+                                    <button
+                                        onClick={() => handlePageChange(currentPage - 1)}
+                                        disabled={currentPage === 1}
+                                        className={`px-4 py-2 rounded-lg ${
+                                            currentPage === 1
+                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                                        }`}
+                                    >
+                                        Previous
+                                    </button>
+
+                                    <div className="flex space-x-2">
+                                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                            let pageNumber
+                                            if (totalPages <= 5) {
+                                                pageNumber = i + 1
+                                            } else if (currentPage <= 3) {
+                                                pageNumber = i + 1
+                                            } else if (currentPage >= totalPages - 2) {
+                                                pageNumber = totalPages - 4 + i
+                                            } else {
+                                                pageNumber = currentPage - 2 + i
+                                            }
+
+                                            return (
+                                                <button
+                                                    key={pageNumber}
+                                                    onClick={() => handlePageChange(pageNumber)}
+                                                    className={`px-4 py-2 rounded-lg ${
+                                                        currentPage === pageNumber
+                                                            ? 'bg-blue-600 text-white'
+                                                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                                                    }`}
+                                                >
+                                                    {pageNumber}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+
+                                    <button
+                                        onClick={() => handlePageChange(currentPage + 1)}
+                                        disabled={currentPage === totalPages}
+                                        className={`px-4 py-2 rounded-lg ${
+                                            currentPage === totalPages
+                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                                        }`}
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>

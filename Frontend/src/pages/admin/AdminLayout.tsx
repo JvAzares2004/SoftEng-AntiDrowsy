@@ -118,19 +118,6 @@ const AdminLayout: React.FC = () => {
                         </NavLink>
 
                         <NavLink
-                            to="users"
-                            onClick={() => setIsSidebarOpen(false)}
-                            className={({ isActive }) =>
-                                `block py-2 px-4 rounded-lg transition-colors
-                                ${isActive 
-                                ? "bg-gray-100 text-gray-900 font-semibold" 
-                                : "text-gray-700 hover:bg-gray-100"}`
-                            }
-                        >
-                            Users
-                        </NavLink>
-
-                        <NavLink
                             to="feedbacks"
                             onClick={() => setIsSidebarOpen(false)}
                             className={({ isActive }) =>
