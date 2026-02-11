@@ -14,9 +14,175 @@ function Login() {
     const [isLoading, setIsLoading] = useState(false);
     const [show2FAModal, setShow2FAModal] = useState(false);
     const [twoFAError, setTwoFAError] = useState('');
+    const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+    const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+    const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+    const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
+    const [forgotPasswordError, setForgotPasswordError] = useState('');
+    const [showResetPasswordForm, setShowResetPasswordForm] = useState(false);
+    const [codeVerified, setCodeVerified] = useState(false);
+    const [resetCode, setResetCode] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
+    };
+
+    const handleForgotPassword = () => {
+        setShowForgotPasswordModal(true);
+        setForgotPasswordEmail('');
+        setForgotPasswordError('');
+        setForgotPasswordSuccess(false);
+        setShowResetPasswordForm(false);
+        setCodeVerified(false);
+        setResetCode('');
+        setNewPassword('');
+        setConfirmPassword('');
+    };
+
+    const handleCloseForgotPassword = () => {
+        setShowForgotPasswordModal(false);
+        setForgotPasswordEmail('');
+        setForgotPasswordError('');
+        setForgotPasswordSuccess(false);
+        setShowResetPasswordForm(false);
+        setCodeVerified(false);
+        setResetCode('');
+        setNewPassword('');
+        setConfirmPassword('');
+    };
+
+    const handleSubmitForgotPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setForgotPasswordError('');
+        setForgotPasswordLoading(true);
+
+        if (!forgotPasswordEmail) {
+            setForgotPasswordError('Please enter your email');
+            setForgotPasswordLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:3000/auth/forgot-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: forgotPasswordEmail }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setForgotPasswordSuccess(true);
+                setForgotPasswordError('');
+                setShowResetPasswordForm(true);
+            } else {
+                setForgotPasswordError(data.message || 'Failed to send verification code');
+            }
+        } catch (error) {
+            setForgotPasswordError('Failed to send verification code. Please try again.');
+        } finally {
+            setForgotPasswordLoading(false);
+        }
+    };
+
+    const handleVerifyCode = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setForgotPasswordError('');
+        setForgotPasswordLoading(true);
+
+        if (!resetCode) {
+            setForgotPasswordError('Please enter the verification code');
+            setForgotPasswordLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:3000/auth/verify-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: forgotPasswordEmail,
+                    code: resetCode,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setCodeVerified(true);
+                setForgotPasswordError('');
+            } else {
+                setForgotPasswordError(data.message || 'Invalid verification code');
+            }
+        } catch (error) {
+            setForgotPasswordError('Failed to verify code. Please try again.');
+        } finally {
+            setForgotPasswordLoading(false);
+        }
+    };
+
+    const handleSubmitResetPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setForgotPasswordError('');
+        setForgotPasswordLoading(true);
+
+        if (!newPassword || !confirmPassword) {
+            setForgotPasswordError('Please fill in all fields');
+            setForgotPasswordLoading(false);
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setForgotPasswordError('Passwords do not match');
+            setForgotPasswordLoading(false);
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            setForgotPasswordError('Password must be at least 8 characters long');
+            setForgotPasswordLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:3000/auth/reset-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: forgotPasswordEmail,
+                    code: resetCode,
+                    newPassword: newPassword,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setForgotPasswordError('');
+                // Show success message and close modal
+                setTimeout(() => {
+                    handleCloseForgotPassword();
+                    // Optionally show a success toast or message
+                    alert('Password reset successfully! Please log in with your new password.');
+                }, 1000);
+            } else {
+                setForgotPasswordError(data.message || 'Failed to reset password');
+            }
+        } catch (error) {
+            setForgotPasswordError('Failed to reset password. Please try again.');
+        } finally {
+            setForgotPasswordLoading(false);
+        }
     };
 
     const handleVerify2FA = async (code: string) => {
@@ -151,7 +317,7 @@ function Login() {
                             </div>
                         </div>
 
-                        {/* Remember Me and Sign Up Link */}
+                        {/* Remember Me and Forgot Password Link */}
                         <div className="flex flex-row items-center justify-between">
                             <div className="flex flex-row items-center space-x-2">
                                 <input 
@@ -165,10 +331,10 @@ function Login() {
                             </div>
                             <button
                                 type="button"
-                                onClick={() => navigate('/user/signup')}
+                                onClick={handleForgotPassword}
                                 className="text-white text-sm font-light hover:text-gray-200 transition-colors underline cursor-pointer"
                             >
-                                Don't have an account?
+                                Forgot password?
                             </button>
                         </div>
 
@@ -180,6 +346,20 @@ function Login() {
                         >
                             {isLoading ? 'Signing In...' : 'Sign In'}
                         </button>
+
+                        {/* Sign Up Link */}
+                        <div className="text-center mt-2">
+                            <span className="text-white text-sm font-light">
+                                Don't have an account?{' '}
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/user/signup')}
+                                    className="text-white font-semibold hover:text-gray-200 transition-colors underline cursor-pointer"
+                                >
+                                    Sign up here
+                                </button>
+                            </span>
+                        </div>
 
                     </form>
                 </div>
@@ -193,6 +373,213 @@ function Login() {
                 onClose={handleClose2FAModal}
                 error={twoFAError}
             />
+
+            {/* Forgot Password Modal */}
+            {showForgotPasswordModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 animate-fadeIn">
+                    <div className="bg-white rounded-lg p-6 shadow-xl max-w-md w-full mx-4 transform animate-slideIn">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-gray-900">Reset Password</h2>
+                            <button
+                                onClick={handleCloseForgotPassword}
+                                className="text-gray-600 hover:text-gray-800 cursor-pointer"
+                                disabled={forgotPasswordLoading}
+                            >
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        {!showResetPasswordForm ? (
+                            // Step 1: Enter email
+                            <>
+                                <p className="text-gray-600 mb-6">
+                                    Enter your email address and we'll send you a verification code to reset your password.
+                                </p>
+                                
+                                {forgotPasswordError && (
+                                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                                        <span className="block sm:inline">{forgotPasswordError}</span>
+                                    </div>
+                                )}
+                                
+                                <form onSubmit={handleSubmitForgotPassword}>
+                                    <input
+                                        type="email"
+                                        placeholder="Enter your email"
+                                        value={forgotPasswordEmail}
+                                        onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                                        disabled={forgotPasswordLoading}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C52233] focus:border-transparent mb-6 disabled:opacity-50 disabled:bg-gray-100"
+                                    />
+                                    
+                                    <div className="flex justify-end gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={handleCloseForgotPassword}
+                                            disabled={forgotPasswordLoading}
+                                            className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors cursor-pointer disabled:opacity-50"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={forgotPasswordLoading || !forgotPasswordEmail}
+                                            className="px-6 py-2 bg-[#C52233] text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {forgotPasswordLoading ? 'Sending...' : 'Send Code'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </>
+                        ) : !codeVerified ? (
+                            // Step 2: Verify code
+                            <>
+                                {forgotPasswordSuccess && (
+                                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                                        <span className="block sm:inline">Verification code sent to {forgotPasswordEmail}</span>
+                                    </div>
+                                )}
+                                
+                                <p className="text-gray-600 mb-6">
+                                    Enter the verification code sent to your email.
+                                </p>
+                                
+                                {forgotPasswordError && (
+                                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                                        <span className="block sm:inline">{forgotPasswordError}</span>
+                                    </div>
+                                )}
+                                
+                                <form onSubmit={handleVerifyCode} className="space-y-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Enter verification code"
+                                        value={resetCode}
+                                        onChange={(e) => setResetCode(e.target.value)}
+                                        disabled={forgotPasswordLoading}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C52233] focus:border-transparent disabled:opacity-50 disabled:bg-gray-100"
+                                    />
+                                    
+                                    <div className="flex justify-end gap-3 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleCloseForgotPassword}
+                                            disabled={forgotPasswordLoading}
+                                            className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors cursor-pointer disabled:opacity-50"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={forgotPasswordLoading || !resetCode}
+                                            className="px-6 py-2 bg-[#C52233] text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {forgotPasswordLoading ? 'Verifying...' : 'Verify Code'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </>
+                        ) : (
+                            // Step 3: Reset password
+                            <>
+                                <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                                    <span className="block sm:inline">Code verified! Now enter your new password.</span>
+                                </div>
+                                
+                                <p className="text-gray-600 mb-6">
+                                    Enter your new password below.
+                                </p>
+                                
+                                {forgotPasswordError && (
+                                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                                        <span className="block sm:inline">{forgotPasswordError}</span>
+                                    </div>
+                                )}
+                                
+                                <form onSubmit={handleSubmitResetPassword} className="space-y-4">
+                                    <div className="relative">
+                                        <input
+                                            type={showNewPassword ? "text" : "password"}
+                                            placeholder="New password"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            disabled={forgotPasswordLoading}
+                                            className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C52233] focus:border-transparent disabled:opacity-50 disabled:bg-gray-100"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowNewPassword(!showNewPassword)}
+                                            disabled={forgotPasswordLoading}
+                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-gray-800 transition-colors cursor-pointer disabled:opacity-50"
+                                            aria-label={showNewPassword ? "Hide password" : "Show password"}
+                                        >
+                                            {showNewPassword ? (
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                            ) : (
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                    <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                            )}
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="relative">
+                                        <input
+                                            type={showConfirmPassword ? "text" : "password"}
+                                            placeholder="Confirm new password"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            disabled={forgotPasswordLoading}
+                                            className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C52233] focus:border-transparent disabled:opacity-50 disabled:bg-gray-100"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            disabled={forgotPasswordLoading}
+                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-gray-800 transition-colors cursor-pointer disabled:opacity-50"
+                                            aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                                        >
+                                            {showConfirmPassword ? (
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                            ) : (
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                    <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                            )}
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="flex justify-end gap-3 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleCloseForgotPassword}
+                                            disabled={forgotPasswordLoading}
+                                            className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors cursor-pointer disabled:opacity-50"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={forgotPasswordLoading || !newPassword || !confirmPassword}
+                                            className="px-6 py-2 bg-[#C52233] text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {forgotPasswordLoading ? 'Resetting...' : 'Reset Password'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

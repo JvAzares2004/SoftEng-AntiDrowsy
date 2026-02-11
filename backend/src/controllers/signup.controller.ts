@@ -220,4 +220,123 @@ export class SignUpController {
       return { success: false, message: 'Error creating account' };
     }
   }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() body: { email: string }) {
+    const client = this.dbService.getClient();
+
+    try {
+      // Clean up expired codes
+      await client.query(
+        'DELETE FROM verification_codes WHERE expires_at < CURRENT_TIMESTAMP',
+      );
+
+      // Check if email exists in the database
+      const existingUser = await client.query(
+        'SELECT customer_id FROM user_customers WHERE email = $1',
+        [body.email],
+      );
+
+      if (existingUser.rows.length === 0) {
+        return {
+          success: false,
+          message: 'Account does not exist',
+        };
+      }
+
+      // Generate and send verification code
+      const code = await this.emailService.sendVerification(body.email);
+
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Check if verification code already exists for this email
+      const existingCode = await client.query(
+        'SELECT id FROM verification_codes WHERE email = $1',
+        [body.email],
+      );
+
+      if (existingCode.rows.length > 0) {
+        // Update existing code
+        await client.query(
+          `UPDATE verification_codes 
+           SET code = $1, expires_at = $2, created_at = CURRENT_TIMESTAMP, is_customer = $3
+           WHERE email = $4`,
+          [code, expiresAt, true, body.email],
+        );
+      } else {
+        // Insert new code
+        await client.query(
+          `INSERT INTO verification_codes (email, code, is_customer, expires_at)
+           VALUES ($1, $2, $3, $4)`,
+          [body.email, code, true, expiresAt],
+        );
+      }
+
+      console.log(chalk.green(`[AUTH] Password reset code sent to ${body.email}`));
+      return { success: true, message: 'Verification code sent to your email' };
+    } catch (error) {
+      console.error(chalk.red('[ERROR] Sending password reset code:'), error);
+      return { success: false, message: 'Failed to send verification code' };
+    }
+  }
+
+  @Post('reset-password')
+  async resetPassword(
+    @Body() body: { email: string; code: string; newPassword: string },
+  ) {
+    const client = this.dbService.getClient();
+
+    try {
+      // Verify the code
+      const verificationResult = await client.query(
+        `SELECT * FROM verification_codes 
+         WHERE email = $1 AND code = $2 AND expires_at > CURRENT_TIMESTAMP`,
+        [body.email, body.code],
+      );
+
+      if (verificationResult.rows.length === 0) {
+        return {
+          success: false,
+          message: 'Invalid or expired verification code',
+        };
+      }
+
+      // Check if user exists
+      const userResult = await client.query(
+        'SELECT customer_id FROM user_customers WHERE email = $1',
+        [body.email],
+      );
+
+      if (userResult.rows.length === 0) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(body.newPassword, 10);
+
+      // Update the password
+      await client.query(
+        'UPDATE user_customers SET password = $1 WHERE email = $2',
+        [hashedPassword, body.email],
+      );
+
+      // Delete the used verification code
+      await client.query('DELETE FROM verification_codes WHERE email = $1', [
+        body.email,
+      ]);
+
+      console.log(chalk.green(`[AUTH] Password reset successful for ${body.email}`));
+
+      return {
+        success: true,
+        message: 'Password reset successfully',
+      };
+    } catch (error) {
+      console.error(chalk.red('[ERROR] Resetting password:'), error);
+      return { success: false, message: 'Failed to reset password' };
+    }
+  }
 }

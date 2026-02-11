@@ -206,6 +206,13 @@ const MainLayout: React.FC = () => {
                         >
                             Feedback
                         </button>
+                        
+                        <button 
+                            onClick={handleLogoutClick}
+                            className="block w-full text-left py-2 px-4 rounded-lg transition-colors text-red-600 hover:bg-red-50 cursor-pointer font-semibold"
+                        >
+                            Logout
+                        </button>
                     </nav>
                 </div>
             </aside>
