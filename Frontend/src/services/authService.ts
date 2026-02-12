@@ -1,226 +1,139 @@
-// Authentication Service for ESP32 Communication
+interface User {
+  username: string;
+}
 
-const ESP32_IP = '192.168.4.1'; // Default ESP32 AP IP address
-const API_BASE_URL = `http://${ESP32_IP}`;
-
-// Development mode - set to true to use mock authentication (for testing without ESP32)
-// Set to false when connected to ESP32 WiFi network
-const DEV_MODE = true;
-
-// Mock credentials for development (matches ESP32 credentials)
-const MOCK_CREDENTIALS = {
-  username: 'admin',
-  password: 'Admin@123'
-};
-
-export interface LoginResponse {
+interface LoginResult {
   success: boolean;
-  message: string;
-  user?: string;
+  message?: string;
+  role?: 'admin' | 'user';
+  require2FA?: boolean;
 }
 
-export interface AuthStatusResponse {
-  authenticated: boolean;
-  user?: string;
-}
-
-export interface ChangePasswordRequest {
-  currentPassword: string;
-  newPassword: string;
-}
+const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 class AuthService {
-  private static instance: AuthService;
-  private isLoggedIn: boolean = false;
-  private currentUser: string | null = null;
+  private currentUser: User | null = null;
+  private lastActivity: number = Date.now();
 
-  private constructor() {
-    // Check if user is already logged in (from localStorage)
-    this.isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    this.currentUser = localStorage.getItem('currentUser');
-  }
-
-  public static getInstance(): AuthService {
-    if (!AuthService.instance) {
-      AuthService.instance = new AuthService();
-    }
-    return AuthService.instance;
-  }
-
-  async login(username: string, password: string): Promise<LoginResponse> {
-    // Development mode - use mock authentication
-    if (DEV_MODE) {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+  constructor() {
+    // Check if user is logged in on initialization
+    const storedUser = localStorage.getItem('currentUser');
+    const storedActivity = localStorage.getItem('lastActivity');
+    
+    if (storedUser && storedActivity) {
+      const lastActivityTime = parseInt(storedActivity);
+      const now = Date.now();
       
-      if (username === MOCK_CREDENTIALS.username && password === MOCK_CREDENTIALS.password) {
-        this.isLoggedIn = true;
-        this.currentUser = username;
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('currentUser', this.currentUser);
-        localStorage.setItem('lastActivity', Date.now().toString());
-        
-        return {
-          success: true,
-          message: 'Login successful (Development Mode)',
-          user: username
-        };
+      // Check if session is still valid
+      if (now - lastActivityTime < TIMEOUT_DURATION) {
+        this.currentUser = JSON.parse(storedUser);
+        this.lastActivity = lastActivityTime;
       } else {
-        return {
-          success: false,
-          message: 'Invalid username or password. Try admin/Admin@123',
-        };
+        // Session expired, clear storage
+        this.logout();
       }
     }
+  }
 
-    // Production mode - connect to ESP32
+  async login(email: string, password: string): Promise<LoginResult> {
     try {
-      const body = `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
-      
-      console.log('Sending login request to:', `${API_BASE_URL}/api/login`);
-      console.log('Request body:', body);
-      console.log('Username:', username);
-      console.log('Password:', password);
-      
-      const response = await fetch(`${API_BASE_URL}/api/login`, {
+      const response = await fetch('http://localhost:3000/auth/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Content-Length': body.length.toString(),
+          'Content-Type': 'application/json',
         },
-        body: body,
+        body: JSON.stringify({ email, password }),
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-      
-      const data: LoginResponse = await response.json();
-      console.log('Response data:', data);
+      const data = await response.json();
 
       if (data.success) {
-        this.isLoggedIn = true;
-        this.currentUser = data.user || username;
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('currentUser', this.currentUser);
-        localStorage.setItem('lastActivity', Date.now().toString());
+        this.currentUser = { username: data.user.email };
+        this.lastActivity = Date.now();
+        
+        // Store user data and role
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
+        localStorage.setItem('userRole', data.role);
+        localStorage.setItem('lastActivity', this.lastActivity.toString());
+        
+        return { success: true, role: data.role };
+      } else {
+        return { 
+          success: false, 
+          message: data.message || 'Login failed',
+          require2FA: data.require2FA 
+        };
       }
-
-      return data;
     } catch (error) {
       console.error('Login error:', error);
-      return {
-        success: false,
-        message: 'Unable to connect to ESP32. Please check your WiFi connection.',
-      };
+      return { success: false, message: 'Network error. Please try again.' };
     }
   }
 
-  async logout(): Promise<boolean> {
-    try {
-      await fetch(`${API_BASE_URL}/api/logout`, {
-        method: 'POST',
-      });
-
-      this.isLoggedIn = false;
-      this.currentUser = null;
-      localStorage.removeItem('isLoggedIn');
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('lastActivity');
-
-      return true;
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Clear local state even if ESP32 request fails
-      this.isLoggedIn = false;
-      this.currentUser = null;
-      localStorage.clear();
-      return false;
-    }
-  }
-
-  async checkAuthStatus(): Promise<boolean> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/status`);
-      const data: AuthStatusResponse = await response.json();
-
-      if (data.authenticated) {
-        this.isLoggedIn = true;
-        this.currentUser = data.user || this.currentUser;
-        localStorage.setItem('isLoggedIn', 'true');
-        if (data.user) {
-          localStorage.setItem('currentUser', data.user);
-        }
-        localStorage.setItem('lastActivity', Date.now().toString());
-        return true;
-      } else {
-        this.isLoggedIn = false;
-        this.currentUser = null;
-        localStorage.removeItem('isLoggedIn');
-        localStorage.removeItem('currentUser');
-        return false;
-      }
-    } catch (error) {
-      console.error('Auth status check error:', error);
-      return false;
-    }
-  }
-
-  async changePassword(currentPassword: string, newPassword: string): Promise<LoginResponse> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/change-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `currentPassword=${encodeURIComponent(currentPassword)}&newPassword=${encodeURIComponent(newPassword)}`,
-      });
-
-      const data: LoginResponse = await response.json();
-      
-      if (data.success) {
-        localStorage.setItem('lastActivity', Date.now().toString());
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Change password error:', error);
-      return {
-        success: false,
-        message: 'Unable to connect to ESP32. Please check your WiFi connection.',
-      };
-    }
+  async logout(): Promise<void> {
+    this.currentUser = null;
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('lastActivity');
+    localStorage.removeItem('rememberMe');
   }
 
   isAuthenticated(): boolean {
-    return this.isLoggedIn;
+    return this.currentUser !== null;
   }
 
-  getCurrentUser(): string | null {
+  getCurrentUser(): User | null {
     return this.currentUser;
   }
 
-  // Check for session timeout (client-side check)
+  updateActivity(): void {
+    this.lastActivity = Date.now();
+    localStorage.setItem('lastActivity', this.lastActivity.toString());
+  }
+
   checkSessionTimeout(): boolean {
-    const lastActivity = localStorage.getItem('lastActivity');
-    if (!lastActivity) return false;
-
     const now = Date.now();
-    const lastActivityTime = parseInt(lastActivity);
-    const sessionTimeout = 3600000; // 1 hour in milliseconds
-
-    if (now - lastActivityTime > sessionTimeout) {
+    const timeSinceLastActivity = now - this.lastActivity;
+    
+    if (timeSinceLastActivity > TIMEOUT_DURATION) {
       this.logout();
       return true;
     }
-
+    
     return false;
   }
 
-  updateActivity(): void {
-    if (this.isLoggedIn) {
-      localStorage.setItem('lastActivity', Date.now().toString());
+  async verify2FA(email: string, code: string): Promise<LoginResult> {
+    try {
+      const response = await fetch('http://localhost:3000/auth/verify-2fa', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, code }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        this.currentUser = { username: data.user.email };
+        this.lastActivity = Date.now();
+        
+        // Store user data and role
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
+        localStorage.setItem('userRole', data.role);
+        localStorage.setItem('lastActivity', this.lastActivity.toString());
+        
+        return { success: true, role: data.role };
+      } else {
+        return { success: false, message: data.message || '2FA verification failed' };
+      }
+    } catch (error) {
+      console.error('2FA verification error:', error);
+      return { success: false, message: 'Network error. Please try again.' };
     }
   }
 }
 
-export default AuthService.getInstance();
+const authService = new AuthService();
+export default authService;
