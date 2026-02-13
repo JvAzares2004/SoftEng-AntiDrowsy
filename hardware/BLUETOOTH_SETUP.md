@@ -80,13 +80,15 @@ ESP32 GND     → Common Ground
 
 ### Testing Devices:
 
-1. **Adjust Volume/Intensity**: 
+1. **Adjust Intensity**: 
    - Use the sliders to set the intensity (0-100%)
-   - This scales the test duration (0-3 seconds)
+   - This controls the actual power/volume output using PWM
+   - Duration is fixed at 3 seconds for all tests
 
 2. **Click Test**:
    - Click the "Test" button for either Motor Vibration or Buzzer
    - The ESP32 will receive the command via Bluetooth
+   - The device will run at the specified intensity for 3 seconds
    - Check the Serial Monitor to see the output
 
 ### Serial Monitor Output:
@@ -96,12 +98,13 @@ When you click "Test", you'll see in the Serial Monitor:
 =================================
 [COMMAND RECEIVED]
 =================================
-Raw command: TEST:buzzer:2000
+Raw command: TEST:buzzer:75
 Test Type: buzzer
-Duration: 2000 ms
+Intensity: 75% (PWM: 191/255)
+Duration: 3000 ms (fixed)
 ---------------------------------
 Testing BUZZER...
-  > Buzzer ON for 2000 ms
+  > Buzzer ON at 75% intensity (PWM: 191/255) for 3000 ms
   > Buzzer OFF
 Test completed!
 =================================
@@ -112,13 +115,15 @@ Test completed!
 The system uses simple text commands over BLE:
 
 | Command | Format | Example | Description |
-|---------|--------|---------|-------------|
-| Test Buzzer | `TEST:buzzer:duration` | `TEST:buzzer:2000` | Test buzzer for 2000ms |
-| Test Vibrator | `TEST:vibrator:duration` | `TEST:vibrator:1500` | Test vibrator for 1500ms |
-| Test Both | `TEST:both:duration` | `TEST:both:2000` | Test both devices |
-| Control | `CONTROL:device:state` | `CONTROL:buzzer:on` | Turn device on/off |
+|---------|--------|---------intensity` | `TEST:buzzer:75` | Test buzzer at 75% intensity for 3s |
+| Test Vibrator | `TEST:vibrator:intensity` | `TEST:vibrator:100` | Test vibrator at 100% intensity for 3s |
+| Test Both | `TEST:both:intensity` | `TEST:both:50` | Test both at 50% intensity for 3s |
+| Control | `CONTROL:device:state` | `CONTROL:buzzer:on` | Turn device on/off at full power |
 | Alert | `ALERT:level` | `ALERT:high` | Trigger alert (low/medium/high) |
 | Stop All | `STOP` | `STOP` | Stop all devices immediately |
+| Status | `STATUS` | `STATUS` | Request current status |
+
+**Note:** The intensity parameter ranges from 0-100% and controls the actual power output using PWM. All test commands run for a fixed duration of 3 seconds.ly |
 | Status | `STATUS` | `STATUS` | Request current status |
 
 ## 🐛 Troubleshooting
@@ -147,9 +152,10 @@ The system uses simple text commands over BLE:
 ## 📊 Features
 
 ✅ **No WiFi Required** - Direct Bluetooth connection  
-✅ **Browser-based Control** - No mobile app installation needed  
-✅ **Real-time Communication** - Instant command execution  
+✅ **PWM Intensity Control** - Precise power output control (0-100%)  
+✅ **Fixed 3-Second Duration** - Consistent test duration for all devices  
 ✅ **Serial Monitor Logging** - All commands visible for debugging  
+✅ **Auto-reconnection** - Automatic advertising restart after disconnect  
 ✅ **Auto-reconnection** - Automatic advertising restart after disconnect  
 ✅ **Volume Scaling** - Test duration scales with intensity slider  
 

@@ -120,22 +120,28 @@ class BluetoothService {
     }
   }
 
-  // Test buzzer
-  async testBuzzer(duration: number = 2000): Promise<void> {
-    console.log(`Testing buzzer for ${duration}ms`);
-    await this.sendCommand(`TEST:buzzer:${duration}`);
+  // Test buzzer with intensity (0-100%)
+  async testBuzzer(intensity: number = 100): Promise<void> {
+    // Clamp intensity to 0-100
+    intensity = Math.max(0, Math.min(100, Math.round(intensity)));
+    console.log(`Testing buzzer at ${intensity}% intensity (3 second duration)`);
+    await this.sendCommand(`TEST:buzzer:${intensity}`);
   }
 
-  // Test vibrator
-  async testVibrator(duration: number = 2000): Promise<void> {
-    console.log(`Testing vibrator for ${duration}ms`);
-    await this.sendCommand(`TEST:vibrator:${duration}`);
+  // Test vibrator with intensity (0-100%)
+  async testVibrator(intensity: number = 100): Promise<void> {
+    // Clamp intensity to 0-100
+    intensity = Math.max(0, Math.min(100, Math.round(intensity)));
+    console.log(`Testing vibrator at ${intensity}% intensity (3 second duration)`);
+    await this.sendCommand(`TEST:vibrator:${intensity}`);
   }
 
-  // Test both devices
-  async testBoth(duration: number = 2000): Promise<void> {
-    console.log(`Testing both devices for ${duration}ms`);
-    await this.sendCommand(`TEST:both:${duration}`);
+  // Test both devices with intensity (0-100%)
+  async testBoth(intensity: number = 100): Promise<void> {
+    // Clamp intensity to 0-100
+    intensity = Math.max(0, Math.min(100, Math.round(intensity)));
+    console.log(`Testing both devices at ${intensity}% intensity (3 second duration)`);
+    await this.sendCommand(`TEST:both:${intensity}`);
   }
 
   // Control buzzer

@@ -30,6 +30,10 @@ function Dashboard() {
     const [isConnecting, setIsConnecting] = useState(false)
     const [hasPromptedBluetooth, setHasPromptedBluetooth] = useState(false)
 
+    // Test cooldown state - tracks which device is testing
+    const [testingDevice, setTestingDevice] = useState<number | null>(null)
+    const [testCooldown, setTestCooldown] = useState<number>(0)
+
     // Helper function to get dynamic color based on volume
     const getVolumeColor = (volume: number) => {
         if (volume <= 25) return '#10B981' // Green - Low
@@ -48,9 +52,9 @@ function Dashboard() {
     // Handle volume test
     const handleVolumeTest = async (index: number) => {
         const deviceType = volumes[index].type;
-        const duration = Math.round((volumes[index].volume / 100) * 3000); // Scale to 0-3 seconds
+        const intensity = volumes[index].volume; // Use volume directly as intensity (0-100)
         
-        console.log(`Testing ${volumes[index].name}: ${volumes[index].volume}% (${duration}ms)`);
+        console.log(`Testing ${volumes[index].name}: ${intensity}% intensity (3 second duration)`);
 
         // Check Bluetooth connection
         if (!isBluetoothConnected) {
@@ -58,19 +62,47 @@ function Dashboard() {
             return;
         }
 
+        // Check if already testing
+        if (testingDevice !== null) {
+            console.log('Test already in progress');
+            return;
+        }
+
         try {
             setBluetoothError(null);
+            setTestingDevice(index);
+            setTestCooldown(3); // 3 second test duration
+            
+            // Start countdown timer
+            const countdownInterval = setInterval(() => {
+                setTestCooldown(prev => {
+                    if (prev <= 1) {
+                        clearInterval(countdownInterval);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
             
             if (deviceType === "buzzer") {
-                await bluetoothService.testBuzzer(duration);
+                await bluetoothService.testBuzzer(intensity);
             } else if (deviceType === "motor") {
-                await bluetoothService.testVibrator(duration);
+                await bluetoothService.testVibrator(intensity);
             }
             
             console.log(`Test completed successfully`);
+            
+            // Clear testing state after completion
+            setTimeout(() => {
+                setTestingDevice(null);
+                setTestCooldown(0);
+            }, 3000);
+            
         } catch (error: any) {
             console.error('Test error:', error);
             setBluetoothError(`Test failed: ${error.message}`);
+            setTestingDevice(null);
+            setTestCooldown(0);
         }
     }
 
@@ -410,16 +442,31 @@ function Dashboard() {
                             {/* Test button - ORIGINAL RED COLOR */}
                             <button 
                                 onClick={() => handleVolumeTest(index)}
-                                disabled={!isBluetoothConnected}
+                                disabled={!isBluetoothConnected || testingDevice !== null}
                                 className={`${
-                                    !isBluetoothConnected 
+                                    !isBluetoothConnected || testingDevice !== null
                                         ? 'bg-gray-400 cursor-not-allowed' 
                                         : 'bg-[#C52233] hover:bg-red-700 hover:scale-105 active:scale-95'
                                 } text-white border rounded-xl flex flex-row items-center justify-center gap-3 p-4 font-bold text-lg shadow-lg hover:shadow-xl transition-all`}
-                                title={!isBluetoothConnected ? 'Connect to ESP32 device first' : 'Test this device'}
+                                title={
+                                    !isBluetoothConnected 
+                                        ? 'Connect to ESP32 device first' 
+                                        : testingDevice !== null 
+                                        ? 'Test in progress' 
+                                        : 'Test this device'
+                                }
                             >
-                                <PlayIcon className="w-5 h-5" />
-                                <span>Test</span>
+                                {testingDevice === index ? (
+                                    <>
+                                        <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                                        <span>Testing... {testCooldown}s</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <PlayIcon className="w-5 h-5" />
+                                        <span>Test</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                     );
