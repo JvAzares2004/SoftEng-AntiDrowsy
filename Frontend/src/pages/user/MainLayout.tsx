@@ -103,7 +103,7 @@ const MainLayout: React.FC = () => {
         await authService.logout();
         setShowLogoutModal(false);
         setIsSidebarOpen(false);
-        navigate('/user/login');
+        navigate('/login');
     };
 
     const cancelLogout = () => {

@@ -1,5 +1,6 @@
 import React, { useState, createContext, useContext } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import authService from '../../services/authService';
 
 import Drowsiness_Logo from '../../component/img/Drowsiness-Logo.png';
 
@@ -42,11 +43,12 @@ const AdminLayout: React.FC = () => {
         setShowLogoutModal(true);
     };
 
-    const confirmLogout = () => {
+    const confirmLogout = async () => {
+        await authService.logout();
         localStorage.removeItem('adminUser');
         setShowLogoutModal(false);
         setIsSidebarOpen(false);
-        navigate('/admin/login');
+        navigate('/login');
     };
 
     const cancelLogout = () => {
@@ -115,6 +117,19 @@ const AdminLayout: React.FC = () => {
                             }
                         >
                             Dashboard
+                        </NavLink>
+
+                        <NavLink
+                            to="users"
+                            onClick={() => setIsSidebarOpen(false)}
+                            className={({ isActive }) =>
+                                `block py-2 px-4 rounded-lg transition-colors
+                                ${isActive 
+                                ? "bg-gray-100 text-gray-900 font-semibold" 
+                                : "text-gray-700 hover:bg-gray-100"}`
+                            }
+                        >
+                            Users
                         </NavLink>
 
                         <NavLink

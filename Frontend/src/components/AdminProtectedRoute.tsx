@@ -2,14 +2,14 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import authService from '../services/authService';
 
-interface ProtectedRouteProps {
+interface AdminProtectedRouteProps {
   children: React.ReactNode;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = ({ children }) => {
   const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isUser, setIsUser] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -24,9 +24,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     const authenticated = authService.isAuthenticated();
     setIsAuthenticated(authenticated);
 
-    // Check if user is a regular user
+    // Check if user is an admin
     const userRole = localStorage.getItem('userRole');
-    setIsUser(userRole === 'user');
+    setIsAdmin(userRole === 'admin');
     setIsLoading(false);
   }, []);
 
@@ -53,12 +53,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (!isUser) {
-    // Redirect to admin dashboard if logged in but not a regular user
-    return <Navigate to="/admin/dashboard" state={{ from: location }} replace />;
+  if (!isAdmin) {
+    // Redirect to user dashboard if logged in but not an admin
+    return <Navigate to="/user/dashboard" state={{ from: location }} replace />;
   }
 
   return <>{children}</>;
 };
 
-export default ProtectedRoute;
+export default AdminProtectedRoute;
