@@ -5,11 +5,11 @@
 
 // Pin definitions (adjust based on your wiring)
 const int BUZZER_PIN = 25;      // GPIO pin for buzzer
-const int VIBRATOR_PIN = 26;    // GPIO pin for vibrator motor
+
+// 6 Vibrator motor pins
+const int VIBRATOR_PINS[6] = {26, 27, 14, 12, 13, 15};  // GPIO pins for 6 vibrator motors
 
 // PWM settings for intensity control
-const int BUZZER_PWM_CHANNEL = 0;
-const int VIBRATOR_PWM_CHANNEL = 1;
 const int PWM_FREQUENCY = 5000;  // 5 KHz
 const int PWM_RESOLUTION = 8;    // 8-bit resolution (0-255)
 
@@ -30,13 +30,14 @@ BLECharacteristic* pStatusCharacteristic = NULL;
 
 // Control states
 bool buzzerState = false;
-bool vibratorState = false;
+bool vibratorStates[6] = {false, false, false, false, false, false};
 
 // Forward declarations
 void handleCommand(String command);
 void updateStatus();
 void activateBuzzer(int intensity, int duration);
-void activateVibrator(int intensity, int duration);
+void activateVibrators(int intensity, int duration);
+void setVibratorIntensity(int intensity);
 
 // BLE Server Callbacks
 class MyServerCallbacks: public BLEServerCallbacks {
@@ -55,9 +56,11 @@ class MyServerCallbacks: public BLEServerCallbacks {
     
     // Stop all outputs when disconnected
     ledcWrite(BUZZER_PIN, 0);
-    ledcWrite(VIBRATOR_PIN, 0);
+    for (int i = 0; i < 6; i++) {
+      ledcWrite(VIBRATOR_PINS[i], 0);
+      vibratorStates[i] = false;
+    }
     buzzerState = false;
-    vibratorState = false;
     
     // Restart advertising
     BLEDevice::startAdvertising();
@@ -95,9 +98,12 @@ void setup() {
   
   // CRITICAL: Set pin modes FIRST before PWM
   pinMode(BUZZER_PIN, OUTPUT);
-  pinMode(VIBRATOR_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
-  digitalWrite(VIBRATOR_PIN, LOW);
+  
+  for (int i = 0; i < 6; i++) {
+    pinMode(VIBRATOR_PINS[i], OUTPUT);
+    digitalWrite(VIBRATOR_PINS[i], LOW);
+  }
   
   Serial.println("GPIO pins set as OUTPUT");
   
@@ -105,39 +111,36 @@ void setup() {
   ledcAttach(BUZZER_PIN, PWM_FREQUENCY, PWM_RESOLUTION);
   ledcWrite(BUZZER_PIN, 0);
   
-  ledcAttach(VIBRATOR_PIN, PWM_FREQUENCY, PWM_RESOLUTION);
-  ledcWrite(VIBRATOR_PIN, 0);
+  for (int i = 0; i < 6; i++) {
+    ledcAttach(VIBRATOR_PINS[i], PWM_FREQUENCY, PWM_RESOLUTION);
+    ledcWrite(VIBRATOR_PINS[i], 0);
+  }
   
   Serial.println("GPIO pins initialized with PWM:");
-  Serial.printf("  - Buzzer: GPIO %d (PWM Channel %d)\n", BUZZER_PIN, BUZZER_PWM_CHANNEL);
-  Serial.printf("  - Vibrator: GPIO %d (PWM Channel %d)\n", VIBRATOR_PIN, VIBRATOR_PWM_CHANNEL);
+  Serial.printf("  - Buzzer: GPIO %d\n", BUZZER_PIN);
+  Serial.println("  - Vibrators:");
+  for (int i = 0; i < 6; i++) {
+    Serial.printf("    - Vibrator %d: GPIO %d\n", i + 1, VIBRATOR_PINS[i]);
+  }
   Serial.printf("  - PWM Frequency: %d Hz\n", PWM_FREQUENCY);
   Serial.printf("  - PWM Resolution: %d-bit (0-255)\n\n", PWM_RESOLUTION);
   
   // === IMMEDIATE HARDWARE TEST ===
   Serial.println("=== HARDWARE TEST ===");
-  Serial.println("Testing GPIO 25 with digitalWrite (should light LED)...");
+  Serial.println("Testing Buzzer on GPIO 25...");
   digitalWrite(BUZZER_PIN, HIGH);
-  delay(2000);
+  delay(1000);
   digitalWrite(BUZZER_PIN, LOW);
-  Serial.println("GPIO 25 test done");
+  Serial.println("Buzzer test done");
   
-  Serial.println("Testing GPIO 26 with digitalWrite...");
-  digitalWrite(VIBRATOR_PIN, HIGH);
-  delay(2000);
-  digitalWrite(VIBRATOR_PIN, LOW);
-  Serial.println("GPIO 26 test done");
-  
-  Serial.println("Testing GPIO 25 with PWM at 255 (100%)...");
-  ledcWrite(BUZZER_PIN, 255);
-  delay(2000);
-  ledcWrite(BUZZER_PIN, 0);
-  Serial.println("PWM test done");
-  
-  Serial.println("Testing GPIO 26 with PWM at 128 (50%)...");
-  ledcWrite(VIBRATOR_PIN, 128);
-  delay(2000);
-  ledcWrite(VIBRATOR_PIN, 0);
+  Serial.println("Testing all 6 vibrators sequentially...");
+  for (int i = 0; i < 6; i++) {
+    Serial.printf("Testing Vibrator %d on GPIO %d...\n", i + 1, VIBRATOR_PINS[i]);
+    ledcWrite(VIBRATOR_PINS[i], 200);
+    delay(500);
+    ledcWrite(VIBRATOR_PINS[i], 0);
+    delay(200);
+  }
   Serial.println("=== HARDWARE TEST COMPLETE ===\n");
   
   // Initialize BLE
@@ -229,14 +232,14 @@ void handleCommand(String command) {
       activateBuzzer(intensity, duration);
     }
     else if (testType == "vibrator") {
-      Serial.println("Testing VIBRATOR...");
-      activateVibrator(intensity, duration);
+      Serial.println("Testing VIBRATORS...");
+      activateVibrators(intensity, duration);
     }
     else if (testType == "both" || testType == "full") {
-      Serial.println("Testing BOTH devices...");
+      Serial.println("Testing ALL devices...");
       activateBuzzer(intensity, duration);
       delay(100);
-      activateVibrator(intensity, duration);
+      activateVibrators(intensity, duration);
     }
     
     Serial.println("Test completed!");
@@ -259,9 +262,9 @@ void handleCommand(String command) {
       Serial.printf("Buzzer turned %s\n", turnOn ? "ON" : "OFF");
     }
     else if (device == "vibrator") {
-      ledcWrite(VIBRATOR_PIN, turnOn ? 255 : 0);
-      vibratorState = turnOn;
-      Serial.printf("Vibrator turned %s\n", turnOn ? "ON" : "OFF");
+      int intensity = turnOn ? 100 : 0;
+      setVibratorIntensity(intensity);
+      Serial.printf("All vibrators turned %s\n", turnOn ? "ON" : "OFF");
     }
     
     updateStatus();
@@ -275,18 +278,18 @@ void handleCommand(String command) {
     
     if (level == "low") {
       Serial.println("Low alert: Brief vibration");
-      activateVibrator(50, 500);
+      activateVibrators(50, 500);
     }
     else if (level == "medium") {
       Serial.println("Medium alert: Vibration + Buzzer");
-      activateVibrator(75, 1000);
+      activateVibrators(75, 1000);
       delay(200);
       activateBuzzer(75, 500);
     }
     else if (level == "high") {
       Serial.println("High alert: Strong pattern");
       for (int i = 0; i < 3; i++) {
-        activateVibrator(100, 500);
+        activateVibrators(100, 500);
         activateBuzzer(100, 500);
         delay(200);
       }
@@ -298,9 +301,11 @@ void handleCommand(String command) {
   else if (command == "STOP") {
     Serial.println("Stopping all devices...");
     ledcWrite(BUZZER_PIN, 0);
-    ledcWrite(VIBRATOR_PIN, 0);
+    for (int i = 0; i < 6; i++) {
+      ledcWrite(VIBRATOR_PINS[i], 0);
+      vibratorStates[i] = false;
+    }
     buzzerState = false;
-    vibratorState = false;
     Serial.println("All devices stopped");
     updateStatus();
   }
@@ -316,12 +321,19 @@ void handleCommand(String command) {
 // Update status characteristic
 void updateStatus() {
   if (deviceConnected && pStatusCharacteristic != NULL) {
-    String status = String(buzzerState ? "1" : "0") + "," + String(vibratorState ? "1" : "0");
+    bool anyVibratorOn = false;
+    for (int i = 0; i < 6; i++) {
+      if (vibratorStates[i]) {
+        anyVibratorOn = true;
+        break;
+      }
+    }
+    String status = String(buzzerState ? "1" : "0") + "," + String(anyVibratorOn ? "1" : "0");
     pStatusCharacteristic->setValue(status.c_str());
     pStatusCharacteristic->notify();
-    Serial.printf("[STATUS] Buzzer=%s, Vibrator=%s (notified)\n", 
+    Serial.printf("[STATUS] Buzzer=%s, Vibrators=%s (notified)\n", 
                   buzzerState ? "ON" : "OFF", 
-                  vibratorState ? "ON" : "OFF");
+                  anyVibratorOn ? "ON" : "OFF");
   }
 }
 
@@ -339,15 +351,56 @@ void activateBuzzer(int intensity, int duration) {
   Serial.println("  > Buzzer OFF");
 }
 
-void activateVibrator(int intensity, int duration) {
-  // Map intensity (0-100%) to PWM duty cycle (0-255)
-  int pwmValue = map(intensity, 0, 100, 0, 255);
-  
-  ledcWrite(VIBRATOR_PIN, pwmValue);
-  vibratorState = true;
-  Serial.printf("  > Vibrator ON at %d%% intensity (PWM: %d/255) for %d ms\n", intensity, pwmValue, duration);
+void activateVibrators(int intensity, int duration) {
+  setVibratorIntensity(intensity);
+  Serial.printf("  > Vibrators activated for %d ms\n", duration);
   delay(duration);
-  ledcWrite(VIBRATOR_PIN, 0);
-  vibratorState = false;
-  Serial.println("  > Vibrator OFF");
+  setVibratorIntensity(0);
+  Serial.println("  > Vibrators OFF");
+}
+
+// Set vibrator intensity with progressive scaling
+void setVibratorIntensity(int intensity) {
+  // intensity: 0-100%
+  // Determines how many vibrators are active and their PWM level
+  
+  int numActiveVibrators = 0;
+  int pwmValue = 0;
+  
+  if (intensity == 0) {
+    numActiveVibrators = 0;
+    pwmValue = 0;
+  } else if (intensity <= 16) {
+    numActiveVibrators = 1;
+    pwmValue = map(intensity, 1, 16, 64, 150);  // Low-moderate
+  } else if (intensity <= 33) {
+    numActiveVibrators = 2;
+    pwmValue = map(intensity, 17, 33, 64, 150);  // Low-moderate
+  } else if (intensity <= 50) {
+    numActiveVibrators = 3;
+    pwmValue = map(intensity, 34, 50, 150, 200);  // Moderate
+  } else if (intensity <= 66) {
+    numActiveVibrators = 4;
+    pwmValue = map(intensity, 51, 66, 200, 230);  // Moderate-high
+  } else if (intensity <= 83) {
+    numActiveVibrators = 5;
+    pwmValue = map(intensity, 67, 83, 230, 255);  // High
+  } else {
+    numActiveVibrators = 6;
+    pwmValue = 255;  // Maximum
+  }
+  
+  Serial.printf("  > Setting %d/%d vibrators at intensity %d%% (PWM: %d/255)\n", 
+                numActiveVibrators, 6, intensity, pwmValue);
+  
+  // Activate the appropriate number of vibrators
+  for (int i = 0; i < 6; i++) {
+    if (i < numActiveVibrators) {
+      ledcWrite(VIBRATOR_PINS[i], pwmValue);
+      vibratorStates[i] = true;
+    } else {
+      ledcWrite(VIBRATOR_PINS[i], 0);
+      vibratorStates[i] = false;
+    }
+  }
 }

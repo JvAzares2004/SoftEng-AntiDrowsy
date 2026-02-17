@@ -45,13 +45,56 @@ function UserManual() {
                                 <p className="text-gray-700">Auditory alert device that emits sound when drowsiness is detected. Intensity adjustable from 0-100 via website.</p>
                             </div>
                             <div>
-                                <h3 className="text-lg font-semibold text-gray-800">Vibrator Motor</h3>
-                                <p className="text-gray-700">Tactile alert device integrated into the car seat that vibrates to alert the driver. Intensity adjustable from 0-100 via website.</p>
+                                <h3 className="text-lg font-semibold text-gray-800">Vibrator Motors (6 Modules)</h3>
+                                <p className="text-gray-700">Six tactile alert devices integrated into the car seat that vibrate to alert the driver. The system scales both the number of active vibrators and their intensity from 0-100 via website, providing progressive tactile feedback.</p>
                             </div>
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-800">Power Supply</h3>
                                 <p className="text-gray-700">Connects directly to vehicle power supply for continuous operation while driving.</p>
                             </div>
+                        </div>
+
+                        {/* ESP32 Pin Configuration */}
+                        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-3">ESP32 Pin Configuration</h3>
+                            <p className="text-gray-700 mb-3">Connect the hardware components to the following GPIO pins on your ESP32:</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="bg-white p-3 rounded border border-blue-200">
+                                    <p className="font-semibold text-gray-800">Buzzer</p>
+                                    <p className="text-gray-700">GPIO Pin: <span className="font-mono font-bold text-blue-600">25</span></p>
+                                </div>
+                                <div className="bg-white p-3 rounded border border-blue-200">
+                                    <p className="font-semibold text-gray-800">Vibrator Module 1</p>
+                                    <p className="text-gray-700">GPIO Pin: <span className="font-mono font-bold text-blue-600">26</span></p>
+                                </div>
+                                <div className="bg-white p-3 rounded border border-blue-200">
+                                    <p className="font-semibold text-gray-800">Vibrator Module 2</p>
+                                    <p className="text-gray-700">GPIO Pin: <span className="font-mono font-bold text-blue-600">27</span></p>
+                                </div>
+                                <div className="bg-white p-3 rounded border border-blue-200">
+                                    <p className="font-semibold text-gray-800">Vibrator Module 3</p>
+                                    <p className="text-gray-700">GPIO Pin: <span className="font-mono font-bold text-blue-600">14</span></p>
+                                </div>
+                                <div className="bg-white p-3 rounded border border-blue-200">
+                                    <p className="font-semibold text-gray-800">Vibrator Module 4</p>
+                                    <p className="text-gray-700">GPIO Pin: <span className="font-mono font-bold text-blue-600">12</span></p>
+                                </div>
+                                <div className="bg-white p-3 rounded border border-blue-200">
+                                    <p className="font-semibold text-gray-800">Vibrator Module 5</p>
+                                    <p className="text-gray-700">GPIO Pin: <span className="font-mono font-bold text-blue-600">13</span></p>
+                                </div>
+                                <div className="bg-white p-3 rounded border border-blue-200">
+                                    <p className="font-semibold text-gray-800">Vibrator Module 6</p>
+                                    <p className="text-gray-700">GPIO Pin: <span className="font-mono font-bold text-blue-600">15</span></p>
+                                </div>
+                                <div className="bg-white p-3 rounded border border-blue-200">
+                                    <p className="font-semibold text-gray-800">Power Supply</p>
+                                    <p className="text-gray-700">VIN: 12V from vehicle<br/>GND: Ground</p>
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-3 italic">
+                                Note: All GPIO pins support PWM for intensity control. Ensure proper current limiting resistors or transistors are used for high-current devices.
+                            </p>
                         </div>
                     </section>
 
@@ -75,7 +118,7 @@ function UserManual() {
                                 <strong>Camera Module Positioning:</strong> Mount the camera module on the dashboard or steering column where it has a clear, unobstructed view of the driver's face. Ensure proper angle for eye and head movement detection.
                             </li>
                             <li>
-                                <strong>Vibration Motor Installation:</strong> Integrate the vibration motor into the car seat backrest at shoulder blade level for optimal alert effectiveness.
+                                <strong>Vibration Motors Installation:</strong> Install all six vibration motors into the car seat backrest in a distributed pattern (3 on each side at upper, middle, and lower positions) for optimal alert coverage and effectiveness.
                             </li>
                             <li>
                                 <strong>Buzzer Placement:</strong> Install the buzzer in a location that provides clear auditory alerts without causing distraction. Dashboard or center console recommended.
@@ -95,7 +138,7 @@ function UserManual() {
                         <ul className="list-disc ml-8 mb-4 text-gray-700 space-y-1">
                             <li>Verify camera has clear view of driver position</li>
                             <li>Test buzzer audibility from driver seat</li>
-                            <li>Confirm vibration motor can be felt through seat</li>
+                            <li>Confirm all 6 vibration motors can be felt through seat at different intensity levels</li>
                             <li>Check all electrical connections for security</li>
                         </ul>
                     </section>
@@ -151,12 +194,23 @@ function UserManual() {
                             <li><strong>75-100:</strong> High intensity - Loud alert for noisy environments or highway driving</li>
                         </ul>
 
-                        <h3 className="text-xl font-semibold text-gray-800 mb-2">To Adjust Vibration Intensity</h3>
+                        <h3 className="text-xl font-semibold text-gray-800 mb-2">Vibration Intensity Control</h3>
+                        <p className="text-gray-700 mb-2">The system features 6 vibrator motors that provide progressive tactile alerts. The intensity slider (0-100) controls both the number of active motors and their individual output strength:</p>
+                        <ul className="list-disc ml-8 mb-3 text-gray-700 space-y-1">
+                            <li><strong>0%:</strong> All vibrators off</li>
+                            <li><strong>1-16%:</strong> 1 vibrator active at low-moderate intensity</li>
+                            <li><strong>17-33%:</strong> 2 vibrators active at low-moderate intensity</li>
+                            <li><strong>34-50%:</strong> 3 vibrators active at moderate intensity</li>
+                            <li><strong>51-66%:</strong> 4 vibrators active at moderate-high intensity</li>
+                            <li><strong>67-83%:</strong> 5 vibrators active at high intensity</li>
+                            <li><strong>84-100%:</strong> All 6 vibrators active at maximum intensity</li>
+                        </ul>
+                        <p className="text-gray-700 mb-2">To adjust:</p>
                         <ul className="list-disc ml-8 mb-4 text-gray-700 space-y-1">
                             <li>Locate the 'Vibration Intensity' slider in the web application.</li>
                             <li>Drag the slider to your desired intensity level (0-100).</li>
-                            <li>The system will immediately apply the new setting.</li>
-                            <li>Test the vibration using the 'Test' button to verify intensity.</li>
+                            <li>The system will immediately apply the new setting, activating the appropriate number of motors.</li>
+                            <li>Test the vibration using the 'Test' button to verify intensity and coverage.</li>
                         </ul>
 
                         <h3 className="text-xl font-semibold text-gray-800 mb-2">Camera Monitoring</h3>
