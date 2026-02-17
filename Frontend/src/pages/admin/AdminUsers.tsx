@@ -20,7 +20,7 @@ function AdminUsers() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<keyof User>('date_created');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const usersPerPage = 20;
+  const usersPerPage = 10;
 
   useEffect(() => {
     fetchUsers();

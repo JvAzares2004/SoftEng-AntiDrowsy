@@ -71,13 +71,13 @@ const AdminLayout: React.FC = () => {
                 isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
             }`}>
                 <div className="w-full flex justify-between items-center p-4">
-                    <div className="flex items-center gap-3">
-                        <img src={Drowsiness_Logo} alt="Logo" className="w-16 h-16"/>
-                        <h1 className="text-xl font-bold text-gray-800">Admin Panel</h1>
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <img src={Drowsiness_Logo} alt="Logo" className="w-12 h-12 flex-shrink-0"/>
+                        <h1 className="text-lg font-bold text-gray-800 truncate">Admin Panel</h1>
                     </div>
                     <button 
                         onClick={toggleSidebar}
-                        className="text-gray-600 hover:text-gray-800 md:hidden"
+                        className="text-gray-600 hover:text-gray-800 md:hidden flex-shrink-0 ml-2"
                     >
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

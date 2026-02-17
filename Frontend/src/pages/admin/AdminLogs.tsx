@@ -26,7 +26,7 @@ function AdminLogs() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<keyof AuditLog>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const logsPerPage = 50;
+  const logsPerPage = 10;
 
   useEffect(() => {
     fetchLogs();
