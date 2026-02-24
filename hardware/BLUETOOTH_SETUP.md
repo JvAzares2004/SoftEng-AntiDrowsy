@@ -1,7 +1,11 @@
-# ESP32 Drowsiness Detection - Bluetooth Setup Guide
+# ESP32 Drowsiness Detection - Connectivity Setup Guide
 
 ## 📱 Overview
-The system now uses **Bluetooth Low Energy (BLE)** instead of WiFi for communication between the web browser and ESP32 controller.
+The system supports **BOTH WiFi and Bluetooth Low Energy (BLE)** for communication with the ESP32 controller.
+
+### Connection Options:
+- **WiFi Access Point**: Creates a WiFi network that Raspberry Pi and other devices can connect to
+- **Bluetooth LE**: Direct Bluetooth connection from compatible browsers (Chrome, Edge, Opera)
 
 ## 🔧 Hardware Setup
 
@@ -51,10 +55,49 @@ ESP32 GND     → Common Ground
      Device Name: ESP32-Drowsiness
      Waiting for connections...
      =================================
+     
+     =================================
+     Setting up WiFi Access Point...
+     =================================
+     ✓ WiFi AP started successfully!
+       SSID: ESP32-Drowsiness-AP
+       Password: drowsy123
+       IP Address: 192.168.4.1
+     
+     Raspberry Pi can now connect to this network
+     =================================
      ```
+
+## 🌐 WiFi Access Point
+
+### WiFi Network Details:
+
+The ESP32 creates its own WiFi network that devices can connect to:
+- **Network Name (SSID)**: `ESP32-Drowsiness-AP`
+- **Password**: `drowsy123`
+- **IP Address**: `192.168.4.1` (ESP32's IP on the network)
+
+### Purpose:
+- Allows Raspberry Pi to connect to the ESP32 over WiFi
+- Provides network connectivity for your frontend application
+- Works simultaneously with Bluetooth
+- No internet access - this is a local network only
+
+### Connecting Devices:
+1. On your Raspberry Pi or any device, go to WiFi settings
+2. Look for network: **ESP32-Drowsiness-AP**
+3. Enter password: **drowsy123**
+4. Device is now on the same network as the ESP32
+5. The frontend application on Raspberry Pi can now communicate with ESP32
 
 ### Frontend (Web Browser):
 
+**WiFi Network** - Used for Raspberry Pi connection
+- The ESP32 creates a WiFi network: `ESP32-Drowsiness-AP`
+- Raspberry Pi connects to this network
+- Frontend runs on Raspberry Pi (not on ESP32)
+
+**Bluetooth Connection** - For direct browser control
 ⚠️ **Important**: Web Bluetooth only works on:
 - ✅ Chrome (Desktop & Android)
 - ✅ Edge (Desktop)
@@ -64,7 +107,21 @@ ESP32 GND     → Common Ground
 
 ## 🚀 Usage
 
-### Connecting to ESP32:
+### WiFi Network Usage
+
+The ESP32 WiFi network is for connecting your Raspberry Pi or other devices:
+
+1. **Connect Raspberry Pi to ESP32 WiFi**:
+   - On Raspberry Pi, connect to WiFi network: `ESP32-Drowsiness-AP`
+   - Enter password: `drowsy123`
+   - Raspberry Pi is now on the same network as ESP32 (192.168.4.x)
+
+2. **Frontend on Raspberry Pi**:
+   - Your frontend application runs on the Raspberry Pi
+   - It can communicate with ESP32 over the WiFi network
+   - Use ESP32's IP (192.168.4.1) or Bluetooth to send commands
+
+### Bluetooth Connection (From Browser)
 
 1. Make sure your ESP32 is powered on and the Serial Monitor shows "Waiting for connections..."
 
@@ -128,7 +185,29 @@ The system uses simple text commands over BLE:
 
 ## 🐛 Troubleshooting
 
-### "Web Bluetooth is not supported"
+### WiFi Issues
+
+**"Can't find ESP32-Drowsiness-AP network"**
+- Make sure ESP32 is powered on
+- Check Serial Monitor - should show "WiFi AP started successfully!"
+- Try resetting the ESP32 (press the EN button)
+- Move closer to the ESP32 (within 10-20 meters)
+- Check if another device is already using that network name
+
+**"Connected to WiFi but can't communicate with ESP32"**
+- Make sure you're connected to the correct WiFi network (ESP32-Drowsiness-AP)
+- Check that the ESP32 IP is 192.168.4.1 (shown in Serial Monitor)
+- Verify your Raspberry Pi has correct network configuration
+- Try pinging the ESP32: `ping 192.168.4.1`
+
+**"Wrong password" when connecting to WiFi**
+- Default password is: `drowsy123` (all lowercase, no spaces)
+- Password is case-sensitive
+- If you changed it in the code, use your custom password
+
+### Bluetooth Issues
+
+**"Web Bluetooth is not supported"**
 - Use Chrome, Edge, or Opera browser
 - Make sure you're using HTTPS (or localhost)
 - Check if Bluetooth is enabled on your computer
@@ -151,20 +230,47 @@ The system uses simple text commands over BLE:
 
 ## 📊 Features
 
-✅ **No WiFi Required** - Direct Bluetooth connection  
+### WiFi Features:
+✅ **WiFi Access Point Mode** - Creates its own network  
+✅ **Network for Raspberry Pi** - Allows Pi to connect and communicate  
+✅ **No Internet Dependency** - Works standalone  
+✅ **Simple Password Protection** - WPA2 secured  
+✅ **192.168.4.1 IP** - Static, predictable address  
+
+### Bluetooth Features:
+✅ **Direct BLE Connection** - No WiFi required  
 ✅ **PWM Intensity Control** - Precise power output control (0-100%)  
 ✅ **Fixed 3-Second Duration** - Consistent test duration for all devices  
 ✅ **Serial Monitor Logging** - All commands visible for debugging  
 ✅ **Auto-reconnection** - Automatic advertising restart after disconnect  
-✅ **Auto-reconnection** - Automatic advertising restart after disconnect  
-✅ **Volume Scaling** - Test duration scales with intensity slider  
+
+### General Features:
+✅ **Dual Connectivity** - Both WiFi and Bluetooth simultaneously  
+✅ **Hardware PWM** - Smooth intensity control  
+✅ **6 Vibration Motors** - Progressive activation based on intensity  
+✅ **Flexible Communication** - Choose WiFi or BLE based on your needs  
 
 ## 🔐 Security Notes
 
+### WiFi Security:
+- WiFi network uses WPA2 encryption
+- Default password: `drowsy123` (change in code for production)
+- Access Point range limited to ~20 meters
+- Only devices with the password can connect
+- No web server running on ESP32 - just provides network connectivity
+- Recommended: Change the password in the Arduino code for production use
+
+### Bluetooth Security:
 - Bluetooth range is limited to ~10 meters
 - No pairing/PIN required (uses BLE GATT)
 - Connection is one-to-one (only one browser can connect at a time)
 - Commands are sent as plain text (sufficient for this use case)
+
+### Network Isolation:
+- The ESP32 WiFi network is isolated (not connected to the internet)
+- This is an Access Point (AP), not a regular WiFi connection
+- Devices connected to this network can communicate with each other and the ESP32
+- No internet access available on this network
 
 ## 📝 Next Steps
 
