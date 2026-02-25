@@ -12,15 +12,33 @@ The system supports **BOTH WiFi and Bluetooth Low Energy (BLE)** for communicati
 ### Required Components:
 - ESP32 Development Board
 - Buzzer (connected to GPIO 25)
-- Vibration Motor (connected to GPIO 26)
-- Appropriate resistors/transistors as needed
+- 6 Vibration Motors (connected to GPIO 26, 27, 14, 12, 13, 15)
+- 2 LEDs for status indication:
+  - GREEN LED (connected to GPIO 2) - Connection status
+  - RED LED (connected to GPIO 4) - Disconnection status
+- Appropriate resistors (220Ω-330Ω for LEDs) and transistors as needed
 
 ### Wiring:
 ```
 ESP32 GPIO 25 → Buzzer
-ESP32 GPIO 26 → Vibration Motor
+ESP32 GPIO 26 → Vibration Motor 1
+ESP32 GPIO 27 → Vibration Motor 2
+ESP32 GPIO 14 → Vibration Motor 3
+ESP32 GPIO 12 → Vibration Motor 4
+ESP32 GPIO 13 → Vibration Motor 5
+ESP32 GPIO 15 → Vibration Motor 6
+
+LED Status Indicators:
+ESP32 GPIO 2  → GREEN LED (+) → 220Ω Resistor → GND  (Connected)
+ESP32 GPIO 4  → RED LED (+) → 220Ω Resistor → GND    (Disconnected)
+
 ESP32 GND     → Common Ground
 ```
+
+### LED Status Indicators:
+- **RED LED (GPIO 4)**: Lights up when NO device is connected (waiting for connection)
+- **GREEN LED (GPIO 2)**: Lights up when a device is successfully connected via Bluetooth
+- Initial state: RED LED ON (waiting for connection)
 
 ## 💻 Software Setup
 

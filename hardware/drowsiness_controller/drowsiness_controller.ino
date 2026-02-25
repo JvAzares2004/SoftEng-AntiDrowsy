@@ -22,6 +22,10 @@ const int BUZZER_PIN = 25;      // GPIO pin for buzzer
 // 6 Vibrator motor pins
 const int VIBRATOR_PINS[6] = {26, 27, 14, 12, 13, 15};  // GPIO pins for 6 vibrator motors
 
+// LED Status Indicators
+const int GREEN_LED_PIN = 2;    // GPIO pin for GREEN LED (connected)
+const int RED_LED_PIN = 4;      // GPIO pin for RED LED (disconnected)
+
 // PWM settings for intensity control
 const int PWM_FREQUENCY = 5000;  // 5 KHz
 const int PWM_RESOLUTION = 8;    // 8-bit resolution (0-255)
@@ -59,6 +63,11 @@ class MyServerCallbacks: public BLEServerCallbacks {
     Serial.println("\n=================================");
     Serial.println("[BLE] Client connected!");
     Serial.println("=================================\n");
+    
+    // Turn on GREEN LED, turn off RED LED
+    digitalWrite(GREEN_LED_PIN, HIGH);
+    digitalWrite(RED_LED_PIN, LOW);
+    Serial.println("[LED] Status: GREEN ON (Connected)");
   };
 
   void onDisconnect(BLEServer* pServer) {
@@ -66,6 +75,11 @@ class MyServerCallbacks: public BLEServerCallbacks {
     Serial.println("\n=================================");
     Serial.println("[BLE] Client disconnected!");
     Serial.println("=================================\n");
+    
+    // Turn off GREEN LED, turn on RED LED
+    digitalWrite(GREEN_LED_PIN, LOW);
+    digitalWrite(RED_LED_PIN, HIGH);
+    Serial.println("[LED] Status: RED ON (Disconnected)");
     
     // Stop all outputs when disconnected
     ledcWrite(BUZZER_PIN, 0);
@@ -158,7 +172,14 @@ void setup() {
     digitalWrite(VIBRATOR_PINS[i], LOW);
   }
   
+  // Initialize LED status pins
+  pinMode(GREEN_LED_PIN, OUTPUT);
+  pinMode(RED_LED_PIN, OUTPUT);
+  digitalWrite(GREEN_LED_PIN, LOW);  // Start with GREEN off
+  digitalWrite(RED_LED_PIN, HIGH);   // Start with RED on (disconnected)
+  
   Serial.println("GPIO pins set as OUTPUT");
+  Serial.println("[LED] Initial state: RED ON (waiting for connection)");
   
   // Initialize PWM - ESP32 Arduino Core 3.0+ API
   ledcAttach(BUZZER_PIN, PWM_FREQUENCY, PWM_RESOLUTION);
@@ -175,6 +196,9 @@ void setup() {
   for (int i = 0; i < 6; i++) {
     Serial.printf("    - Vibrator %d: GPIO %d\n", i + 1, VIBRATOR_PINS[i]);
   }
+  Serial.println("  - LED Status Indicators:");
+  Serial.printf("    - GREEN LED (Connected): GPIO %d\n", GREEN_LED_PIN);
+  Serial.printf("    - RED LED (Disconnected): GPIO %d\n", RED_LED_PIN);
   Serial.printf("  - PWM Frequency: %d Hz\n", PWM_FREQUENCY);
   Serial.printf("  - PWM Resolution: %d-bit (0-255)\n\n", PWM_RESOLUTION);
   
