@@ -1,11 +1,9 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import MotorVolumeIcon from '../../component/svg/MotorVolumeIcon'
 import BuzzerIcon from '../../component/svg/BuzzerIcon'
 import BurgerIcon from '../../component/svg/BurgerIcon'
 
 import PlayIcon from '../../component/svg/PlayerIcon'
-import FullscreenIcon from '../../component/svg/FullscreenIcon'
-import CameraIcon from '../../component/svg/CameraIcon'
 import { useSidebar } from './MainLayout'
 import bluetoothService from '../../services/bluetoothService'
 
@@ -16,12 +14,6 @@ function Dashboard() {
         { type:"motor", name: "Motor Vibration", volume: 100, icon: MotorVolumeIcon },
         { type:"buzzer", name: "Buzzer Volume", volume: 100, icon: BuzzerIcon },
     ])
-    
-    const videoRef = useRef<HTMLVideoElement>(null)
-    const cameraContainerRef = useRef<HTMLDivElement>(null)
-    const [isCameraActive, setIsCameraActive] = useState(false)
-    const [cameraError, setCameraError] = useState<string | null>(null)
-    const [isLoading, setIsLoading] = useState(true)
 
     // Bluetooth state
     const [isBluetoothConnected, setIsBluetoothConnected] = useState(false)
@@ -157,24 +149,6 @@ function Dashboard() {
         }
     }
 
-    // Initialize camera on component mount
-    useEffect(() => {
-        let mounted = true
-        
-        const initCamera = async () => {
-            if (mounted) {
-                await startCamera()
-            }
-        }
-        
-        initCamera()
-        
-        return () => {
-            mounted = false
-            stopCamera()
-        }
-    }, [])
-
     // Auto-prompt Bluetooth connection on mount if not connected
     useEffect(() => {
         const checkBluetoothConnection = async () => {
@@ -210,85 +184,6 @@ function Dashboard() {
 
         checkBluetoothConnection();
     }, [])
-
-    const startCamera = async () => {
-        setIsLoading(true)
-        console.log("🎥 Requesting camera access...")
-        
-        try {
-            // Check if getUserMedia is supported
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error("Camera API not supported in this browser")
-            }
-
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: true,
-                audio: false
-            })
-            
-            console.log("Camera access granted")
-            console.log("Stream tracks:", stream.getTracks().length)
-            
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream
-                
-                // Wait for video to be ready
-                videoRef.current.onloadedmetadata = () => {
-                    console.log("Video metadata loaded")
-                    console.log("Video dimensions:", videoRef.current?.videoWidth, "x", videoRef.current?.videoHeight)
-                    videoRef.current?.play().then(() => {
-                        console.log("✅ Video playing")
-                        setIsCameraActive(true)
-                        setCameraError(null)
-                        setIsLoading(false)
-                    }).catch(err => {
-                        console.error("❌ Play error:", err)
-                        setIsCameraActive(false)
-                        setCameraError("Failed to play video: " + err.message)
-                        setIsLoading(false)
-                    })
-                }
-            }
-        } catch (err: any) {
-            console.error("❌ Camera error:", err)
-            setIsCameraActive(false)
-            setIsLoading(false)
-            
-            if (err.name === 'NotAllowedError') {
-                setCameraError("Camera access denied. Please allow camera permissions.")
-            } else if (err.name === 'NotFoundError') {
-                setCameraError("No camera found on this device.")
-            } else if (err.name === 'NotReadableError') {
-                setCameraError("Camera is already in use by another application.")
-            } else {
-                setCameraError(err.message || "Unable to access camera")
-            }
-        }
-    }
-
-    const stopCamera = () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream
-            stream.getTracks().forEach(track => {
-                track.stop()
-                console.log("Stopped camera track")
-            })
-            videoRef.current.srcObject = null
-            setIsCameraActive(false)
-        }
-    }
-
-    const handleFullscreen = () => {
-        if (cameraContainerRef.current) {
-            if (!document.fullscreenElement) {
-                cameraContainerRef.current.requestFullscreen().catch(err => {
-                    console.error("Error attempting to enable fullscreen:", err)
-                })
-            } else {
-                document.exitFullscreen()
-            }
-        }
-    }
 
     return (
         <div>
@@ -471,70 +366,6 @@ function Dashboard() {
                         </div>
                     );
                 })}
-                    
-                <div 
-                    ref={cameraContainerRef}
-                    className="camera-container flex flex-col border rounded-xl overflow-hidden bg-black relative shadow-md"
-                >
-                    <div className="camera-controls flex flex-row w-full justify-between p-3 bg-gray-900">
-                        <h1 className="font-semibold text-white">Camera Field</h1>
-                        <button 
-                            onClick={handleFullscreen}
-                            className="hover:scale-110 transition-transform cursor-pointer"
-                            aria-label="Toggle fullscreen"
-                        >
-                            <FullscreenIcon className="text-white" />
-                        </button>
-                    </div>
-                    <button 
-                        onClick={handleFullscreen}
-                        className="fullscreen-button hover:scale-110 transition-transform cursor-pointer"
-                        aria-label="Exit fullscreen"
-                    >
-                        <FullscreenIcon className="text-white" />
-                    </button>
-                    <div className="relative w-full bg-black" style={{ minHeight: '400px' }}>
-                        <video 
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            style={{
-                                display: isCameraActive ? 'block' : 'none',
-                                width: '100%',
-                                height: '100%',
-                                minHeight: '400px',
-                                objectFit: 'contain'
-                            }}
-                        />
-                        {!isCameraActive && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-10">
-                                {isLoading ? (
-                                    <>
-                                        <CameraIcon className="text-gray-400 animate-pulse w-12 h-12" />
-                                        <p className="text-white text-center">Initializing camera...</p>
-                                    </>
-                                ) : cameraError ? (
-                                    <>
-                                        <CameraIcon className="text-red-500 w-12 h-12" />
-                                        <p className="text-white text-center text-sm max-w-md">{cameraError}</p>
-                                        <button 
-                                            onClick={startCamera}
-                                            className="bg-[#C52233] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-                                        >
-                                            Retry
-                                        </button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <CameraIcon className="text-gray-400 w-12 h-12" />
-                                        <p className="text-white text-center">Camera not active</p>
-                                    </>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
             </div>
         </div>
     )
