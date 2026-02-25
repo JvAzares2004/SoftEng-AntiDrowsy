@@ -23,6 +23,13 @@ function AdminDashboard() {
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
     const usersPerPage = 20
     
+    // CSV Import Modal state
+    const [showImportModal, setShowImportModal] = useState(false)
+    const [importModalType, setImportModalType] = useState<'error' | 'success' | 'warning'>('error')
+    const [importModalTitle, setImportModalTitle] = useState('')
+    const [importModalMessage, setImportModalMessage] = useState('')
+    const [importDuplicates, setImportDuplicates] = useState<string[]>([])
+    
     // Counter states
     const [totalActiveUsers, setTotalActiveUsers] = useState(0)
     const [onlineUsers, setOnlineUsers] = useState(0)
@@ -34,7 +41,11 @@ function AdminDashboard() {
 
     const exportToCSV = () => {
         if (filteredAndSortedUsers.length === 0) {
-            alert('No users to export')
+            setImportModalType('warning')
+            setImportModalTitle('No Data to Export')
+            setImportModalMessage('There are no users to export.')
+            setImportDuplicates([])
+            setShowImportModal(true)
             return
         }
 
@@ -81,14 +92,74 @@ function AdminDashboard() {
                 // Skip header row
                 const dataLines = lines.slice(1).filter(line => line.trim())
                 
-                console.log(`CSV Import: Found ${dataLines.length} rows`)
-                alert(`Successfully read ${dataLines.length} rows from CSV. Import functionality would process these users.`)
+                if (dataLines.length === 0) {
+                    setImportModalType('error')
+                    setImportModalTitle('Empty CSV File')
+                    setImportModalMessage('CSV file is empty or contains only headers.')
+                    setImportDuplicates([])
+                    setShowImportModal(true)
+                    event.target.value = ''
+                    return
+                }
+                
+                // Parse CSV data
+                const importedUsers = dataLines.map(line => {
+                    const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+                    return {
+                        firstname: values[0] || '',
+                        lastname: values[1] || '',
+                        email: values[2] || '',
+                        contact_number: values[3] || '',
+                    }
+                }).filter(user => user.email) // Only include rows with email
+                
+                // Check for duplicates by comparing emails
+                const existingEmails = new Set(users.map(u => u.email.toLowerCase()))
+                const duplicates: string[] = []
+                const newUsers = importedUsers.filter(user => {
+                    const emailLower = user.email.toLowerCase()
+                    if (existingEmails.has(emailLower)) {
+                        duplicates.push(user.email)
+                        return false
+                    }
+                    return true
+                })
+                
+                // Build detailed message and show modal
+                let message = `Total rows found: ${importedUsers.length}\nNew users that can be imported: ${newUsers.length}\nDuplicates (already exist): ${duplicates.length}`
+                
+                if (duplicates.length > 0) {
+                    setImportModalType('error')
+                    setImportModalTitle('Duplicate Users Found')
+                    message += '\n\nThe following users already exist in the system and cannot be imported:'
+                    setImportModalMessage(message)
+                    setImportDuplicates(duplicates)
+                } else if (newUsers.length === 0) {
+                    setImportModalType('warning')
+                    setImportModalTitle('No New Users')
+                    setImportModalMessage('No new users to import. All users already exist in the system.')
+                    setImportDuplicates([])
+                } else {
+                    setImportModalType('success')
+                    setImportModalTitle('Import Preview')
+                    message += '\n\nNote: This is a preview. Actual import functionality needs to be implemented.'
+                    setImportModalMessage(message)
+                    setImportDuplicates([])
+                }
+                
+                setShowImportModal(true)
+                console.log('Duplicate emails:', duplicates)
+                console.log('New users to import:', newUsers)
                 
                 // Reset file input
                 event.target.value = ''
             } catch (error) {
                 console.error('Error parsing CSV:', error)
-                alert('Error parsing CSV file. Please check the format.')
+                setImportModalType('error')
+                setImportModalTitle('CSV Parse Error')
+                setImportModalMessage('Error parsing CSV file. Please check the format.\n\nExpected format: First Name, Last Name, Email, Contact Number')
+                setImportDuplicates([])
+                setShowImportModal(true)
             }
         }
         reader.readAsText(file)
@@ -211,6 +282,7 @@ function AdminDashboard() {
     }
 
     return (
+        <>
         <div className="min-h-screen bg-gray-100">
             {/* Mobile Menu Button */}
             <div className="p-4 md:p-6">
@@ -515,6 +587,52 @@ function AdminDashboard() {
                 </div>
             </div>
         </div>
+        
+        {/* CSV Import Modal */}
+        {showImportModal && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+                <div className="bg-white rounded-lg p-6 shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                    <h2 className={`text-xl font-bold mb-4 ${
+                        importModalType === 'error' ? 'text-red-600' : 
+                        importModalType === 'warning' ? 'text-yellow-600' : 
+                        'text-green-600'
+                    }`}>
+                        {importModalTitle}
+                    </h2>
+                    <div className="text-gray-700 mb-4 whitespace-pre-line">
+                        {importModalMessage}
+                    </div>
+                    
+                    {importDuplicates.length > 0 && (
+                        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg max-h-60 overflow-y-auto">
+                            <h3 className="font-semibold text-red-800 mb-2">Duplicate Emails:</h3>
+                            <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                                {importDuplicates.slice(0, 20).map((email, index) => (
+                                    <li key={index}>{email}</li>
+                                ))}
+                                {importDuplicates.length > 20 && (
+                                    <li className="font-semibold">... and {importDuplicates.length - 20} more</li>
+                                )}
+                            </ul>
+                        </div>
+                    )}
+                    
+                    <div className="flex justify-end mt-6">
+                        <button
+                            onClick={() => setShowImportModal(false)}
+                            className={`px-6 py-2 rounded-lg transition-colors cursor-pointer ${
+                                importModalType === 'error' ? 'bg-red-500 hover:bg-red-600 text-white' :
+                                importModalType === 'warning' ? 'bg-yellow-500 hover:bg-yellow-600 text-white' :
+                                'bg-blue-500 hover:bg-blue-600 text-white'
+                            }`}
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     )
 }
 

@@ -294,7 +294,7 @@ function SignUp() {
         
         // For contact number, only allow numbers and phone-related characters
         if (name === 'contactNumber') {
-            const filteredValue = value.replace(/[^0-9+\-\s()]/g, '');
+            const filteredValue = value.replace(/[^0-9+\-\s()]/g, '').slice(0, 15);
             setFormData(prev => ({
                 ...prev,
                 [name]: filteredValue
@@ -479,6 +479,7 @@ function SignUp() {
                                 value={formData.contactNumber}
                                 onChange={handleInputChange}
                                 disabled={isLoading}
+                                maxLength={15}
                                 className="text-white text-md font-light border border-white rounded-lg px-4 py-3 bg-transparent placeholder-white disabled:opacity-50 w-full"
                             />
                             {isCheckingContact && !fieldErrors.contactNumber && (

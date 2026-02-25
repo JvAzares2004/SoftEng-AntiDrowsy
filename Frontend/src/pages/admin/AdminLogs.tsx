@@ -27,6 +27,13 @@ function AdminLogs() {
   const [sortField, setSortField] = useState<keyof AuditLog>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const logsPerPage = 10;
+  
+  // CSV Import Modal state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importModalType, setImportModalType] = useState<'error' | 'success' | 'warning'>('error');
+  const [importModalTitle, setImportModalTitle] = useState('');
+  const [importModalMessage, setImportModalMessage] = useState('');
+  const [importDuplicates, setImportDuplicates] = useState<string[]>([]);
 
   useEffect(() => {
     fetchLogs();
@@ -83,14 +90,80 @@ function AdminLogs() {
         // Skip header row
         const dataLines = lines.slice(1).filter(line => line.trim());
         
-        console.log(`CSV Import: Found ${dataLines.length} rows`);
-        alert(`Successfully read ${dataLines.length} rows from CSV. Import functionality would process these logs.`);
+        if (dataLines.length === 0) {
+          setImportModalType('error');
+          setImportModalTitle('Empty CSV File');
+          setImportModalMessage('CSV file is empty or contains only headers.');
+          setImportDuplicates([]);
+          setShowImportModal(true);
+          event.target.value = '';
+          return;
+        }
+        
+        // Parse CSV data (based on export format: User, Email, User Type, Action, Details, IP Address, Timestamp)
+        const importedLogs = dataLines.map(line => {
+          const values = line.split(',').map(v => v.trim());
+          return {
+            user_name: values[0] || '',
+            user_email: values[1] || '',
+            user_type: values[2] || '',
+            action: values[3] || '',
+            details: values[4] || null,
+            ip_address: values[5] || null,
+            created_at: values[6] || '',
+          };
+        }).filter(log => log.action && log.created_at); // Only include rows with essential data
+        
+        // Check for duplicates based on combination of user_email, action, and timestamp
+        const existingLogKeys = new Set(
+          logs.map(l => `${l.user_email}|${l.action}|${l.created_at}`)
+        );
+        
+        const duplicates: string[] = [];
+        const newLogs = importedLogs.filter(log => {
+          const logKey = `${log.user_email}|${log.action}|${log.created_at}`;
+          if (existingLogKeys.has(logKey)) {
+            duplicates.push(`${log.user_email} - ${log.action} at ${log.created_at}`);
+            return false;
+          }
+          return true;
+        });
+        
+        // Build detailed message and show modal
+        let message = `Total rows found: ${importedLogs.length}\nNew logs that can be imported: ${newLogs.length}\nDuplicates (already exist): ${duplicates.length}`;
+        
+        if (duplicates.length > 0) {
+          setImportModalType('error');
+          setImportModalTitle('Duplicate Logs Found');
+          message += '\n\nThe following logs already exist in the system and cannot be imported:';
+          setImportModalMessage(message);
+          setImportDuplicates(duplicates);
+        } else if (newLogs.length === 0) {
+          setImportModalType('warning');
+          setImportModalTitle('No New Logs');
+          setImportModalMessage('No new logs to import. All logs already exist in the system.');
+          setImportDuplicates([]);
+        } else {
+          setImportModalType('success');
+          setImportModalTitle('Import Preview');
+          message += '\n\nNote: This is a preview. Actual import functionality needs to be implemented.';
+          setImportModalMessage(message);
+          setImportDuplicates([]);
+        }
+        
+        setShowImportModal(true);
+        console.log('Duplicate logs:', duplicates);
+        console.log('New logs to import:', newLogs);
         
         // Reset file input
         event.target.value = '';
       } catch (error) {
         console.error('Error parsing CSV:', error);
-        alert('Error parsing CSV file. Please check the format.');
+        setImportModalType('error');
+        setImportModalTitle('CSV Parse Error');
+        setImportModalMessage('Error parsing CSV file. Please check the format.\n\nExpected format: User, Email, User Type, Action, Details, IP Address, Timestamp');
+        setImportDuplicates([]);
+        setShowImportModal(true);
       }
     };
     reader.readAsText(file);
@@ -536,6 +609,51 @@ function AdminLogs() {
           )}
         </div>
       </div>
+      
+      {/* CSV Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg p-6 shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <h2 className={`text-xl font-bold mb-4 ${
+              importModalType === 'error' ? 'text-red-600' : 
+              importModalType === 'warning' ? 'text-yellow-600' : 
+              'text-green-600'
+            }`}>
+              {importModalTitle}
+            </h2>
+            <div className="text-gray-700 mb-4 whitespace-pre-line">
+              {importModalMessage}
+            </div>
+            
+            {importDuplicates.length > 0 && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg max-h-60 overflow-y-auto">
+                <h3 className="font-semibold text-red-800 mb-2">Duplicate Logs:</h3>
+                <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                  {importDuplicates.slice(0, 20).map((log, index) => (
+                    <li key={index}>{log}</li>
+                  ))}
+                  {importDuplicates.length > 20 && (
+                    <li className="font-semibold">... and {importDuplicates.length - 20} more</li>
+                  )}
+                </ul>
+              </div>
+            )}
+            
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowImportModal(false)}
+                className={`px-6 py-2 rounded-lg transition-colors cursor-pointer ${
+                  importModalType === 'error' ? 'bg-red-500 hover:bg-red-600 text-white' :
+                  importModalType === 'warning' ? 'bg-yellow-500 hover:bg-yellow-600 text-white' :
+                  'bg-blue-500 hover:bg-blue-600 text-white'
+                }`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

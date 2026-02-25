@@ -13,7 +13,6 @@ import AdminSettings from './pages/admin/AdminSettings'
 import AdminSignUp from './pages/admin/AdminSignUp'
 import AdminFeedbacks from './pages/admin/AdminFeedbacks'
 import AdminLogs from './pages/admin/AdminLogs'
-import AdminUsers from './pages/admin/AdminUsers'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminProtectedRoute from './components/AdminProtectedRoute'
 
@@ -54,7 +53,6 @@ function App() {
         }
       >
         <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="users" element={<AdminUsers />} />
         <Route path="feedbacks" element={<AdminFeedbacks />} />
         <Route path="logs" element={<AdminLogs />} />
         <Route path="settings" element={<AdminSettings />} />
