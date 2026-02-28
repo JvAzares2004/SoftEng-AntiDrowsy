@@ -6,17 +6,25 @@ RUN npm ci
 COPY Frontend/ ./
 RUN npm run build
 
-# Backend
+# Build backend
+FROM node:20-alpine AS backend-build
+WORKDIR /app
+COPY backend/package*.json ./
+RUN npm ci
+COPY backend/ ./
+RUN npm run build  # compiles NestJS TS to JS in dist/
+
+# Final image
 FROM node:20-alpine
 WORKDIR /app
 
-COPY backend/package*.json ./
-RUN npm ci --omit=dev
-COPY backend/ ./
+# Copy backend
+COPY --from=backend-build /app/package*.json ./
+COPY --from=backend-build /app/dist ./dist
+COPY --from=frontend-build /app/dist ./dist/frontend
 
-# Copy frontend build into backend
-COPY --from=frontend-build /app/dist ./dist
+RUN npm ci --omit=dev
 
 EXPOSE 3001
 
-CMD ["node", "server.js"]
+CMD ["node", "dist/main.js"]
