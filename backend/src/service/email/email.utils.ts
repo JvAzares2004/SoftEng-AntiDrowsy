@@ -10,9 +10,9 @@ export async function sendVerificationEmail(
   code: string,
 ): Promise<void> {
   const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
+    host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true', // true for port 465, false for 587
     auth: {
       user: process.env.MAIL_USER,
       pass: process.env.MAIL_PASS,
@@ -20,7 +20,7 @@ export async function sendVerificationEmail(
   });
 
   const mailOptions = {
-    from: `"Drowsiness Detection System" <${process.env.MAIL_USER}>`,
+    from: `"Drowsiness Detection System" <${process.env.FROM_EMAIL || process.env.MAIL_USER}>`,
     to,
     subject: 'Email Verification Code',
     text: `Your verification code is: ${code}. This code will expire in 10 minutes.`,
