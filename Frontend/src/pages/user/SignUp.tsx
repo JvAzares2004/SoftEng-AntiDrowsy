@@ -637,9 +637,14 @@ function SignUp() {
                         </p>
                         <input
                             type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             placeholder="Enter verification code"
                             value={verificationCode}
-                            onChange={(e) => setVerificationCode(e.target.value)}
+                            onChange={(e) => {
+                                const value = e.target.value.replace(/[^0-9]/g, '');
+                                setVerificationCode(value);
+                            }}
                             maxLength={6}
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-[#C52233] text-center text-2xl tracking-widest"
                         />

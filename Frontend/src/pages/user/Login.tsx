@@ -389,8 +389,8 @@ function Login() {
 
             {/* Forgot Password Modal */}
             {showForgotPasswordModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-80 z-[60] flex items-center justify-center p-4 animate-fadeIn">
-                    <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-xl p-6 shadow-2xl max-w-md w-full animate-scaleIn">
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fadeIn pointer-events-none">
+                    <div className="bg-white rounded-xl p-6 shadow-2xl max-w-md w-full animate-scaleIn pointer-events-auto">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-2xl font-bold text-gray-800">Reset Password</h2>
                             <button
@@ -468,9 +468,14 @@ function Login() {
                                 <form onSubmit={handleVerifyCode} className="space-y-4">
                                     <input
                                         type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                         placeholder="Enter verification code"
                                         value={resetCode}
-                                        onChange={(e) => setResetCode(e.target.value)}
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/[^0-9]/g, '');
+                                            setResetCode(value);
+                                        }}
                                         maxLength={6}
                                         disabled={forgotPasswordLoading}
                                         className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-[#C52233] text-center text-2xl tracking-widest disabled:opacity-50 disabled:bg-gray-100"
