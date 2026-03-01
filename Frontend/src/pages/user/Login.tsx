@@ -1,6 +1,6 @@
 import DrowsinessLogo from '../../component/img/Drowsiness-Logo.png';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import authService from '../../services/authService';
 import TwoFactorModal from '../../components/TwoFactorModal';
 import API_URL from '../../config/api';
@@ -27,10 +27,25 @@ function Login() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [showPasswordResetSuccessModal, setShowPasswordResetSuccessModal] = useState(false);
+    const [resetCountdown, setResetCountdown] = useState(5);
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
     };
+
+    // Auto-redirect countdown timer for password reset success
+    useEffect(() => {
+        if (showPasswordResetSuccessModal && resetCountdown > 0) {
+            const timer = setTimeout(() => {
+                setResetCountdown(resetCountdown - 1);
+            }, 1000);
+            return () => clearTimeout(timer);
+        } else if (showPasswordResetSuccessModal && resetCountdown === 0) {
+            handleCloseForgotPassword();
+            setShowPasswordResetSuccessModal(false);
+        }
+    }, [showPasswordResetSuccessModal, resetCountdown]);
 
     const handleForgotPassword = () => {
         setShowForgotPasswordModal(true);
@@ -170,12 +185,9 @@ function Login() {
 
             if (data.success) {
                 setForgotPasswordError('');
-                // Show success message and close modal
-                setTimeout(() => {
-                    handleCloseForgotPassword();
-                    // Optionally show a success toast or message
-                    alert('Password reset successfully! Please log in with your new password.');
-                }, 1000);
+                // Show success modal and start countdown
+                setShowPasswordResetSuccessModal(true);
+                setResetCountdown(5);
             } else {
                 setForgotPasswordError(data.message || 'Failed to reset password');
             }
@@ -578,6 +590,47 @@ function Login() {
                                 </form>
                             </>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Password Reset Success Modal */}
+            {showPasswordResetSuccessModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-xl p-8 max-w-md w-full shadow-2xl animate-scaleIn text-center">
+                        {/* Success Icon */}
+                        <div className="flex justify-center mb-4">
+                            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+                                <svg 
+                                    className="w-10 h-10 text-white" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path 
+                                        strokeLinecap="round" 
+                                        strokeLinejoin="round" 
+                                        strokeWidth={2} 
+                                        d="M5 13l4 4L19 7" 
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+                        
+                        <h2 className="text-3xl font-bold text-gray-800 mb-3">Password Reset Successful!</h2>
+                        <p className="text-gray-600 mb-6">
+                            Your password has been reset successfully. You will be redirected to the login page in <span className="font-bold text-[#C52233]">{resetCountdown}</span> seconds.
+                        </p>
+                        
+                        <button
+                            onClick={() => {
+                                handleCloseForgotPassword();
+                                setShowPasswordResetSuccessModal(false);
+                            }}
+                            className="w-full px-6 py-3 bg-[#C52233] text-white rounded-lg font-semibold hover:bg-[#a01c2a] transition-colors cursor-pointer shadow-lg"
+                        >
+                            Go to Login Now
+                        </button>
                     </div>
                 </div>
             )}
