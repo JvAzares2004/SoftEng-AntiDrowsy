@@ -32,6 +32,8 @@ function SignUp() {
     const [isVerifyingCode, setIsVerifyingCode] = useState(false);
     const [isCheckingEmail, setIsCheckingEmail] = useState(false);
     const [isCheckingContact, setIsCheckingContact] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [countdown, setCountdown] = useState(5);
 
     // Real-time validation with debounce
     useEffect(() => {
@@ -50,6 +52,18 @@ function SignUp() {
 
         return () => clearTimeout(timer);
     }, [formData.firstName]);
+
+    // Auto-redirect countdown timer
+    useEffect(() => {
+        if (showSuccessModal && countdown > 0) {
+            const timer = setTimeout(() => {
+                setCountdown(countdown - 1);
+            }, 1000);
+            return () => clearTimeout(timer);
+        } else if (showSuccessModal && countdown === 0) {
+            navigate('/user/login');
+        }
+    }, [showSuccessModal, countdown, navigate]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -359,8 +373,9 @@ function SignUp() {
             const data = await response.json();
 
             if (data.success) {
-                // Navigate to login page after successful signup
-                navigate('/user/login');
+                // Show success modal instead of navigating immediately
+                setShowSuccessModal(true);
+                setCountdown(5); // Reset countdown
             } else {
                 setError(data.message || 'Failed to create account');
             }
@@ -643,6 +658,44 @@ function SignUp() {
                                 {isVerifyingCode ? 'Verifying...' : 'Verify'}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Success Modal */}
+            {showSuccessModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-xl p-8 max-w-md w-full shadow-2xl animate-scaleIn text-center">
+                        {/* Success Icon */}
+                        <div className="flex justify-center mb-4">
+                            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+                                <svg 
+                                    className="w-10 h-10 text-white" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path 
+                                        strokeLinecap="round" 
+                                        strokeLinejoin="round" 
+                                        strokeWidth={2} 
+                                        d="M5 13l4 4L19 7" 
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+                        
+                        <h2 className="text-3xl font-bold text-gray-800 mb-3">Sign Up Successful!</h2>
+                        <p className="text-gray-600 mb-6">
+                            Your account has been created successfully. You will be redirected to the login page in <span className="font-bold text-[#C52233]">{countdown}</span> seconds.
+                        </p>
+                        
+                        <button
+                            onClick={() => navigate('/user/login')}
+                            className="w-full px-6 py-3 bg-[#C52233] text-white rounded-lg font-semibold hover:bg-[#a01c2a] transition-colors cursor-pointer shadow-lg"
+                        >
+                            Go to Login Now
+                        </button>
                     </div>
                 </div>
             )}
