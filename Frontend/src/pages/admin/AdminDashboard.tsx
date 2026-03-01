@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import BurgerIcon from '../../component/svg/BurgerIcon'
 import { useSidebar } from './AdminLayout'
+import { API_URL } from '../../config/api'
 
 interface User {
   customer_id: string;
@@ -170,7 +171,7 @@ function AdminDashboard() {
         setError('')
 
         try {
-            const response = await fetch('http://localhost:3000/auth/users/statistics')
+            const response = await fetch(`${API_URL}/auth/users/statistics`)
             const data = await response.json()
 
             if (data.success) {

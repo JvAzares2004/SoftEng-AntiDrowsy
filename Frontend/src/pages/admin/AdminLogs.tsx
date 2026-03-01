@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSidebar } from './AdminLayout';
 import BurgerIcon from '../../component/svg/BurgerIcon';
+import { API_URL } from '../../config/api';
 
 interface AuditLog {
   log_id: string;
@@ -174,7 +175,7 @@ function AdminLogs() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3000/logs');
+      const response = await fetch(`${API_URL}/logs`);
       const data = await response.json();
 
       if (data.success) {

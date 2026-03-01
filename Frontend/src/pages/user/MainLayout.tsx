@@ -1,6 +1,7 @@
 import React, { useState, createContext, useContext } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
+import { API_URL } from '../../config/api';
 
 import Drowsiness_Logo from '../../component/img/Drowsiness-Logo.png';
 
@@ -71,7 +72,7 @@ const MainLayout: React.FC = () => {
                 return;
             }
 
-            const response = await fetch('http://localhost:3000/feedback/submit', {
+            const response = await fetch(`${API_URL}/feedback/submit`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

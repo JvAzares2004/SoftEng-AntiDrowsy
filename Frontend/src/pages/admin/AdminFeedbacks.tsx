@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSidebar } from './AdminLayout';
 import BurgerIcon from '../../component/svg/BurgerIcon';
+import { API_URL } from '../../config/api';
 
 interface Feedback {
   feedback_id: number;
@@ -182,7 +183,7 @@ function AdminFeedbacks() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3000/feedback/all');
+      const response = await fetch(`${API_URL}/feedback/all`);
       const data = await response.json();
 
       if (data.success) {
