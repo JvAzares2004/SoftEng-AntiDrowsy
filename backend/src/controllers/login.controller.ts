@@ -39,11 +39,11 @@ export class LoginController {
         'SELECT * FROM user_admins WHERE email = $1',
         [body.email],
       );
-      
+
       if (result.rows.length > 0) {
         user = result.rows[0];
         role = 'admin';
-        
+
         // Check if admin account is active
         const status = String(user.status || '').toLowerCase();
         if (status && status !== 'active') {
@@ -54,10 +54,17 @@ export class LoginController {
         }
 
         // For admins, verify password first then send 2FA code
-        const passwordMatches = await bcrypt.compare(body.password, user.password);
-        
+        const passwordMatches = await bcrypt.compare(
+          body.password,
+          user.password,
+        );
+
         if (!passwordMatches) {
-          console.log(chalk.red(`[AUTH] Login failed - Incorrect password for admin: ${body.email}`));
+          console.log(
+            chalk.red(
+              `[AUTH] Login failed - Incorrect password for admin: ${body.email}`,
+            ),
+          );
           return { success: false, message: 'Invalid email or password' };
         }
 
@@ -65,8 +72,12 @@ export class LoginController {
         const code = await this.emailService.sendVerification(user.email);
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-        console.log(chalk.blue(`[AUTH] Generated code: ${code} for ${user.email}`));
-        console.log(chalk.blue(`[AUTH] Code expires at: ${expiresAt.toISOString()}`));
+        console.log(
+          chalk.blue(`[AUTH] Generated code: ${code} for ${user.email}`),
+        );
+        console.log(
+          chalk.blue(`[AUTH] Code expires at: ${expiresAt.toISOString()}`),
+        );
 
         // Store 2FA code in database
         await client.query(
@@ -77,7 +88,9 @@ export class LoginController {
           [user.email, code, false, expiresAt],
         );
 
-        console.log(chalk.yellow(`[AUTH] 2FA code sent to admin: ${user.email}`));
+        console.log(
+          chalk.yellow(`[AUTH] 2FA code sent to admin: ${user.email}`),
+        );
 
         return {
           success: false,
@@ -92,7 +105,7 @@ export class LoginController {
           'SELECT * FROM user_customers WHERE email = $1',
           [body.email],
         );
-        
+
         if (result.rows.length > 0) {
           user = result.rows[0];
           role = 'user';
@@ -101,19 +114,30 @@ export class LoginController {
 
       // Check if user exists
       if (!user) {
-        console.log(chalk.red(`[AUTH] Login failed - User not found: ${body.email}`));
+        console.log(
+          chalk.red(`[AUTH] Login failed - User not found: ${body.email}`),
+        );
         return { success: false, message: 'Invalid email or password' };
       }
 
       // Verify password
-      const passwordMatches = await bcrypt.compare(body.password, user.password);
-      
+      const passwordMatches = await bcrypt.compare(
+        body.password,
+        user.password,
+      );
+
       if (!passwordMatches) {
-        console.log(chalk.red(`[AUTH] Login failed - Incorrect password for: ${body.email}`));
+        console.log(
+          chalk.red(
+            `[AUTH] Login failed - Incorrect password for: ${body.email}`,
+          ),
+        );
         return { success: false, message: 'Invalid email or password' };
       }
 
-      console.log(chalk.green(`[AUTH] ${role} login successful: ${user.email}`));
+      console.log(
+        chalk.green(`[AUTH] ${role} login successful: ${user.email}`),
+      );
 
       // Log the login action
       await this.auditLogger.log({
@@ -138,7 +162,11 @@ export class LoginController {
       };
     } catch (err) {
       console.error(chalk.red('[ERROR] Login error:'), err);
-      return { success: false, message: 'Login error. Please try again.' };
+      return {
+        success: false,
+        message: 'Login error. Please try again.',
+        error: err,
+      };
     }
   }
 
@@ -147,15 +175,22 @@ export class LoginController {
     const client = this.dbService.getClient();
 
     try {
-      console.log(chalk.blue(`[AUTH] Verifying 2FA for: ${body.email}, code: ${body.code}`));
+      console.log(
+        chalk.blue(
+          `[AUTH] Verifying 2FA for: ${body.email}, code: ${body.code}`,
+        ),
+      );
 
       // Debug: Check all records for this email
       const debugResult = await client.query(
         'SELECT * FROM verification_codes WHERE email = $1',
         [body.email],
       );
-      
-      console.log(chalk.blue(`[AUTH] All records for ${body.email}:`), debugResult.rows);
+
+      console.log(
+        chalk.blue(`[AUTH] All records for ${body.email}:`),
+        debugResult.rows,
+      );
 
       // Retrieve the verification code from database
       const result = await client.query(
@@ -163,16 +198,29 @@ export class LoginController {
         [body.email],
       );
 
-      console.log(chalk.blue(`[AUTH] Found ${result.rows.length} records for ${body.email}`));
-      
+      console.log(
+        chalk.blue(
+          `[AUTH] Found ${result.rows.length} records for ${body.email}`,
+        ),
+      );
+
       if (result.rows.length > 0) {
         const record = result.rows[0];
-        console.log(chalk.blue(`[AUTH] Stored code: ${record.code}, is_customer: ${record.is_customer}, expires_at: ${record.expires_at}`));
+        console.log(
+          chalk.blue(
+            `[AUTH] Stored code: ${record.code}, is_customer: ${record.is_customer}, expires_at: ${record.expires_at}`,
+          ),
+        );
       }
 
       if (result.rows.length === 0) {
-        console.log(chalk.red(`[AUTH] 2FA failed - No code found for: ${body.email}`));
-        return { success: false, message: 'Verification code not found or expired' };
+        console.log(
+          chalk.red(`[AUTH] 2FA failed - No code found for: ${body.email}`),
+        );
+        return {
+          success: false,
+          message: 'Verification code not found or expired',
+        };
       }
 
       const record = result.rows[0];
@@ -181,14 +229,24 @@ export class LoginController {
 
       // Check if code has expired
       if (now > expiresAt) {
-        console.log(chalk.red(`[AUTH] 2FA failed - Code expired for: ${body.email}`));
-        await client.query('DELETE FROM verification_codes WHERE email = $1', [body.email]);
-        return { success: false, message: 'Verification code has expired. Please try logging in again.' };
+        console.log(
+          chalk.red(`[AUTH] 2FA failed - Code expired for: ${body.email}`),
+        );
+        await client.query('DELETE FROM verification_codes WHERE email = $1', [
+          body.email,
+        ]);
+        return {
+          success: false,
+          message:
+            'Verification code has expired. Please try logging in again.',
+        };
       }
 
       // Verify the code
       if (record.code !== body.code) {
-        console.log(chalk.red(`[AUTH] 2FA failed - Invalid code for: ${body.email}`));
+        console.log(
+          chalk.red(`[AUTH] 2FA failed - Invalid code for: ${body.email}`),
+        );
         return { success: false, message: 'Invalid verification code' };
       }
 
@@ -205,9 +263,15 @@ export class LoginController {
       const admin = adminResult.rows[0];
 
       // Delete the used verification code
-      await client.query('DELETE FROM verification_codes WHERE email = $1', [body.email]);
+      await client.query('DELETE FROM verification_codes WHERE email = $1', [
+        body.email,
+      ]);
 
-      console.log(chalk.green(`[AUTH] 2FA verification successful for admin: ${admin.email}`));
+      console.log(
+        chalk.green(
+          `[AUTH] 2FA verification successful for admin: ${admin.email}`,
+        ),
+      );
 
       // Log the 2FA verification
       await this.auditLogger.log({
@@ -232,7 +296,10 @@ export class LoginController {
       };
     } catch (err) {
       console.error(chalk.red('[ERROR] 2FA verification error:'), err);
-      return { success: false, message: 'Verification error. Please try again.' };
+      return {
+        success: false,
+        message: 'Verification error. Please try again.',
+      };
     }
   }
 }
