@@ -596,8 +596,8 @@ function Login() {
 
             {/* Password Reset Success Modal */}
             {showPasswordResetSuccessModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 animate-fadeIn">
-                    <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-xl p-8 max-w-md w-full shadow-2xl animate-scaleIn text-center">
+                <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[70] p-4 animate-fadeIn">
+                    <div className="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl animate-scaleIn text-center">
                         {/* Success Icon */}
                         <div className="flex justify-center mb-4">
                             <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
