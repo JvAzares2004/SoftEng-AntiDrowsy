@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Get, Put, Delete, Query, Param } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Get,
+  Put,
+  Delete,
+  Query,
+} from '@nestjs/common';
 import { DatabaseService } from '../service/database/database.service';
 import chalk from 'chalk';
 
@@ -90,7 +98,11 @@ export class DeviceController {
                updated_at = NOW()
            WHERE device_id = $3
            RETURNING *`,
-          [body.device_name, body.device_type, existingDevice.rows[0].device_id],
+          [
+            body.device_name,
+            body.device_type,
+            existingDevice.rows[0].device_id,
+          ],
         );
 
         console.log(chalk.green('[DEVICE] Device updated successfully'));
@@ -130,7 +142,10 @@ export class DeviceController {
     const client = this.dbService.getClient();
 
     try {
-      console.log(chalk.blue('[DEVICE] Auto-detecting devices for:'), body.email);
+      console.log(
+        chalk.blue('[DEVICE] Auto-detecting devices for:'),
+        body.email,
+      );
       console.log(chalk.blue('[DEVICE] Detected devices:'), body.devices);
 
       // Get customer_id from email
@@ -172,7 +187,11 @@ export class DeviceController {
                  updated_at = NOW()
              WHERE device_id = $3
              RETURNING *`,
-            [device.device_name, device.device_type, existingDevice.rows[0].device_id],
+            [
+              device.device_name,
+              device.device_type,
+              existingDevice.rows[0].device_id,
+            ],
           );
           registeredDevices.push(updateResult.rows[0]);
         } else {
@@ -181,13 +200,22 @@ export class DeviceController {
             `INSERT INTO devices (customer_id, device_name, device_type, device_address, paired_at, last_connected, is_active, created_at, updated_at)
              VALUES ($1, $2, $3, $4, NOW(), NOW(), true, NOW(), NOW())
              RETURNING *`,
-            [customerId, device.device_name, device.device_type, device.device_address],
+            [
+              customerId,
+              device.device_name,
+              device.device_type,
+              device.device_address,
+            ],
           );
           registeredDevices.push(insertResult.rows[0]);
         }
       }
 
-      console.log(chalk.green(`[DEVICE] Successfully processed ${registeredDevices.length} devices`));
+      console.log(
+        chalk.green(
+          `[DEVICE] Successfully processed ${registeredDevices.length} devices`,
+        ),
+      );
       return {
         success: true,
         message: `Successfully detected and registered ${registeredDevices.length} device(s)`,
