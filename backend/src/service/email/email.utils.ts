@@ -1,32 +1,35 @@
 import * as crypto from 'crypto';
-import * as nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
 
 export function generateVerificationCode(): string {
   return crypto.randomInt(100000, 999999).toString();
+}
+
+interface BrevoApiResponse {
+  messageId?: string;
 }
 
 export async function sendVerificationEmail(
   to: string,
   code: string,
 ): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-  const transporter: Transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: process.env.SMTP_SECURE === 'true', // true for port 465, false for 587
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
-    },
-  } as nodemailer.TransportOptions);
+  const brevoApiKey = process.env.BREVO_API_KEY;
 
-  const mailOptions = {
-    from: `"Drowsiness Detection System" <${process.env.FROM_EMAIL || process.env.MAIL_USER}>`,
-    to,
+  if (!brevoApiKey) {
+    throw new Error('BREVO_API_KEY is not configured');
+  }
+
+  const emailData = {
+    sender: {
+      name: 'Drowsiness Detection System',
+      email: process.env.FROM_EMAIL || 'jvazares2004@gmail.com',
+    },
+    to: [
+      {
+        email: to,
+      },
+    ],
     subject: 'Email Verification Code',
-    text: `Your verification code is: ${code}. This code will expire in 10 minutes.`,
-    html: `
+    htmlContent: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
         <div style="background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 20px; text-align: center;">
           <h1 style="margin: 0; font-size: 24px;">Drowsiness Detection System</h1>
@@ -54,8 +57,29 @@ export async function sendVerificationEmail(
         </div>
       </div>
     `,
+    textContent: `Your verification code is: ${code}. This code will expire in 10 minutes.`,
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-  await transporter.sendMail(mailOptions);
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'api-key': brevoApiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(emailData),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Brevo API Error:', error);
+    throw new Error(
+      `Failed to send email via Brevo API: ${response.status} ${error}`,
+    );
+  }
+
+  const result = (await response.json()) as BrevoApiResponse;
+  console.log(
+    `Email sent successfully to ${to}. Message ID: ${result.messageId || 'N/A'}`,
+  );
 }
