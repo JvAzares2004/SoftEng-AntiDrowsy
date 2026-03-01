@@ -389,10 +389,10 @@ function Login() {
 
             {/* Forgot Password Modal */}
             {showForgotPasswordModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 animate-fadeIn">
-                    <div className="bg-white rounded-lg p-6 shadow-xl max-w-md w-full mx-4 transform animate-slideIn">
+                <div className="fixed inset-0 bg-black bg-opacity-80 z-[60] flex items-center justify-center p-4 animate-fadeIn">
+                    <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-xl p-6 shadow-2xl max-w-md w-full animate-scaleIn">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-gray-900">Reset Password</h2>
+                            <h2 className="text-2xl font-bold text-gray-800">Reset Password</h2>
                             <button
                                 onClick={handleCloseForgotPassword}
                                 className="text-gray-600 hover:text-gray-800 cursor-pointer"
@@ -427,19 +427,19 @@ function Login() {
                                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C52233] focus:border-transparent mb-6 disabled:opacity-50 disabled:bg-gray-100"
                                     />
                                     
-                                    <div className="flex justify-end gap-3">
+                                    <div className="flex gap-3">
                                         <button
                                             type="button"
                                             onClick={handleCloseForgotPassword}
                                             disabled={forgotPasswordLoading}
-                                            className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors cursor-pointer disabled:opacity-50"
+                                            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer disabled:opacity-50"
                                         >
                                             Cancel
                                         </button>
                                         <button
                                             type="submit"
                                             disabled={forgotPasswordLoading || !forgotPasswordEmail}
-                                            className="px-6 py-2 bg-[#C52233] text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="flex-1 px-4 py-3 bg-[#C52233] text-white rounded-lg font-semibold hover:bg-[#a01c2a] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {forgotPasswordLoading ? 'Sending...' : 'Send Code'}
                                         </button>
@@ -455,8 +455,8 @@ function Login() {
                                     </div>
                                 )}
                                 
-                                <p className="text-gray-600 mb-6">
-                                    Enter the verification code sent to your email.
+                                <p className="text-gray-600 mb-4">
+                                    A verification code has been sent to <span className="font-semibold">{forgotPasswordEmail}</span>. Please enter the code below.
                                 </p>
                                 
                                 {forgotPasswordError && (
@@ -471,25 +471,26 @@ function Login() {
                                         placeholder="Enter verification code"
                                         value={resetCode}
                                         onChange={(e) => setResetCode(e.target.value)}
+                                        maxLength={6}
                                         disabled={forgotPasswordLoading}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C52233] focus:border-transparent disabled:opacity-50 disabled:bg-gray-100"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-[#C52233] text-center text-2xl tracking-widest disabled:opacity-50 disabled:bg-gray-100"
                                     />
                                     
-                                    <div className="flex justify-end gap-3 pt-2">
+                                    <div className="flex gap-3">
                                         <button
                                             type="button"
                                             onClick={handleCloseForgotPassword}
                                             disabled={forgotPasswordLoading}
-                                            className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors cursor-pointer disabled:opacity-50"
+                                            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer disabled:opacity-50"
                                         >
                                             Cancel
                                         </button>
                                         <button
                                             type="submit"
                                             disabled={forgotPasswordLoading || !resetCode}
-                                            className="px-6 py-2 bg-[#C52233] text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="flex-1 px-4 py-3 bg-[#C52233] text-white rounded-lg font-semibold hover:bg-[#a01c2a] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            {forgotPasswordLoading ? 'Verifying...' : 'Verify Code'}
+                                            {forgotPasswordLoading ? 'Verifying...' : 'Verify'}
                                         </button>
                                     </div>
                                 </form>
@@ -570,19 +571,19 @@ function Login() {
                                         </button>
                                     </div>
                                     
-                                    <div className="flex justify-end gap-3 pt-2">
+                                    <div className="flex gap-3 pt-2">
                                         <button
                                             type="button"
                                             onClick={handleCloseForgotPassword}
                                             disabled={forgotPasswordLoading}
-                                            className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors cursor-pointer disabled:opacity-50"
+                                            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer disabled:opacity-50"
                                         >
                                             Cancel
                                         </button>
                                         <button
                                             type="submit"
                                             disabled={forgotPasswordLoading || !newPassword || !confirmPassword}
-                                            className="px-6 py-2 bg-[#C52233] text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="flex-1 px-4 py-3 bg-[#C52233] text-white rounded-lg font-semibold hover:bg-[#a01c2a] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {forgotPasswordLoading ? 'Resetting...' : 'Reset Password'}
                                         </button>
