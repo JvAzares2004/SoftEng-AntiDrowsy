@@ -1,6 +1,7 @@
 import DrowsinessLogo from '../../component/img/Drowsiness-Logo.png';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import API_URL from '../../config/api';
 
 function AdminSignUp() {
     const navigate = useNavigate();
@@ -26,8 +27,6 @@ function AdminSignUp() {
     const [acceptedTerms, setAcceptedTerms] = useState(false);
     const [isCheckingEmail, setIsCheckingEmail] = useState(false);
     const [isCheckingContact, setIsCheckingContact] = useState(false);
-
-    const API_URL = 'http://localhost:3000';
 
     // Real-time validation with debounce
     useEffect(() => {

@@ -1,5 +1,6 @@
 import * as crypto from 'crypto';
 import * as nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 
 export function generateVerificationCode(): string {
   return crypto.randomInt(100000, 999999).toString();
@@ -9,7 +10,8 @@ export async function sendVerificationEmail(
   to: string,
   code: string,
 ): Promise<void> {
-  const transporter = nodemailer.createTransport({
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+  const transporter: Transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
     port: parseInt(process.env.SMTP_PORT || '587', 10),
     secure: process.env.SMTP_SECURE === 'true', // true for port 465, false for 587
@@ -17,7 +19,7 @@ export async function sendVerificationEmail(
       user: process.env.MAIL_USER,
       pass: process.env.MAIL_PASS,
     },
-  });
+  } as nodemailer.TransportOptions);
 
   const mailOptions = {
     from: `"Drowsiness Detection System" <${process.env.FROM_EMAIL || process.env.MAIL_USER}>`,
@@ -54,5 +56,6 @@ export async function sendVerificationEmail(
     `,
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   await transporter.sendMail(mailOptions);
 }

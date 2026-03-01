@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3000';
+import API_URL from '../config/api';
 
 export interface Device {
   device_id?: number;
@@ -10,8 +10,14 @@ export interface Device {
   is_active: boolean;
 }
 
+interface ApiResponse<T = unknown> {
+  success: boolean;
+  message?: string;
+  data?: T;
+}
+
 class DeviceService {
-  async registerDevice(email: string, deviceName: string, deviceType: string, deviceAddress: string): Promise<any> {
+  async registerDevice(email: string, deviceName: string, deviceType: string, deviceAddress: string): Promise<ApiResponse<Device>> {
     try {
       const response = await fetch(`${API_URL}/device/register`, {
         method: 'POST',
@@ -33,7 +39,7 @@ class DeviceService {
     }
   }
 
-  async autoDetectDevices(email: string, devices: Array<{ device_name: string; device_address: string; device_type: string }>): Promise<any> {
+  async autoDetectDevices(email: string, devices: Array<{ device_name: string; device_address: string; device_type: string }>): Promise<ApiResponse<Device[]>> {
     try {
       const response = await fetch(`${API_URL}/device/auto-detect`, {
         method: 'POST',
@@ -53,7 +59,7 @@ class DeviceService {
     }
   }
 
-  async listDevices(email: string): Promise<any> {
+  async listDevices(email: string): Promise<ApiResponse<Device[]>> {
     try {
       const response = await fetch(`${API_URL}/device/list?email=${encodeURIComponent(email)}`, {
         method: 'GET',
@@ -69,7 +75,7 @@ class DeviceService {
     }
   }
 
-  async updateDevice(email: string, deviceId: number, updates: { device_name?: string; is_active?: boolean }): Promise<any> {
+  async updateDevice(email: string, deviceId: number, updates: { device_name?: string; is_active?: boolean }): Promise<ApiResponse<Device>> {
     try {
       const response = await fetch(`${API_URL}/device/update`, {
         method: 'PUT',
@@ -90,7 +96,7 @@ class DeviceService {
     }
   }
 
-  async disconnectDevice(email: string, deviceId: number): Promise<any> {
+  async disconnectDevice(email: string, deviceId: number): Promise<ApiResponse> {
     try {
       const response = await fetch(`${API_URL}/device/disconnect`, {
         method: 'POST',
@@ -110,7 +116,7 @@ class DeviceService {
     }
   }
 
-  async removeDevice(email: string, deviceId: number): Promise<any> {
+  async removeDevice(email: string, deviceId: number): Promise<ApiResponse> {
     try {
       const response = await fetch(`${API_URL}/device/remove`, {
         method: 'DELETE',
@@ -130,7 +136,7 @@ class DeviceService {
     }
   }
 
-  async updateConnection(email: string, deviceId: number): Promise<any> {
+  async updateConnection(email: string, deviceId: number): Promise<ApiResponse> {
     try {
       const response = await fetch(`${API_URL}/device/update-connection`, {
         method: 'POST',

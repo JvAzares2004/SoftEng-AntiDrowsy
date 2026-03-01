@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import BurgerIcon from "../../component/svg/BurgerIcon";
 import { useSidebar } from "./MainLayout";
-
-const API_URL = "http://localhost:3000";
+import API_URL from "../../config/api";
 
 function Settings() {
   const { toggleSidebar, handleLogout } = useSidebar();

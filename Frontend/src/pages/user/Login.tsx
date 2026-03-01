@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import authService from '../../services/authService';
 import TwoFactorModal from '../../components/TwoFactorModal';
+import API_URL from '../../config/api';
 
 function Login() {
     const navigate = useNavigate();
@@ -67,7 +68,7 @@ function Login() {
         }
 
         try {
-            const response = await fetch('http://localhost:3000/auth/forgot-password', {
+            const response = await fetch(`${API_URL}/auth/forgot-password`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -84,7 +85,7 @@ function Login() {
             } else {
                 setForgotPasswordError(data.message || 'Failed to send verification code');
             }
-        } catch (error) {
+        } catch {
             setForgotPasswordError('Failed to send verification code. Please try again.');
         } finally {
             setForgotPasswordLoading(false);
@@ -103,7 +104,7 @@ function Login() {
         }
 
         try {
-            const response = await fetch('http://localhost:3000/auth/verify-code', {
+            const response = await fetch(`${API_URL}/auth/verify-code`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -122,7 +123,7 @@ function Login() {
             } else {
                 setForgotPasswordError(data.message || 'Invalid verification code');
             }
-        } catch (error) {
+        } catch {
             setForgotPasswordError('Failed to verify code. Please try again.');
         } finally {
             setForgotPasswordLoading(false);
@@ -153,7 +154,7 @@ function Login() {
         }
 
         try {
-            const response = await fetch('http://localhost:3000/auth/reset-password', {
+            const response = await fetch(`${API_URL}/auth/reset-password`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -178,7 +179,7 @@ function Login() {
             } else {
                 setForgotPasswordError(data.message || 'Failed to reset password');
             }
-        } catch (error) {
+        } catch {
             setForgotPasswordError('Failed to reset password. Please try again.');
         } finally {
             setForgotPasswordLoading(false);
@@ -200,7 +201,7 @@ function Login() {
             } else {
                 setTwoFAError(result.message || 'Invalid verification code');
             }
-        } catch (err) {
+        } catch {
             setTwoFAError('Verification failed. Please try again.');
         }
     };
@@ -244,7 +245,7 @@ function Login() {
             } else {
                 setError(result.message || 'Invalid email or password');
             }
-        } catch (err) {
+        } catch {
             setError('Invalid email or password');
         } finally {
             setIsLoading(false);

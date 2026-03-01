@@ -1,3 +1,5 @@
+import API_URL from '../config/api';
+
 interface User {
   username: string;
 }
@@ -37,7 +39,7 @@ class AuthService {
 
   async login(email: string, password: string): Promise<LoginResult> {
     try {
-      const response = await fetch('http://localhost:3000/auth/login', {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,7 +107,7 @@ class AuthService {
 
   async verify2FA(email: string, code: string): Promise<LoginResult> {
     try {
-      const response = await fetch('http://localhost:3000/auth/verify-2fa', {
+      const response = await fetch(`${API_URL}/auth/verify-2fa`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
