@@ -1,6 +1,5 @@
 // Bluetooth Low Energy Service for ESP32 Drowsiness Controller
 // This service uses the Web Bluetooth API to communicate with the ESP32
-/// <reference path="../types/bluetooth.d.ts" />
 
 const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
 const COMMAND_CHAR_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
@@ -72,12 +71,13 @@ class BluetoothService {
       console.log('Subscribed to status notifications');
 
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Bluetooth connection error:', error);
-      if (error.message.includes('User cancelled')) {
+      if (error instanceof Error && error.message.includes('User cancelled')) {
         throw new Error('Connection cancelled by user');
       }
-      throw new Error(`Failed to connect: ${error.message}`);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to connect: ${message}`);
     }
   }
 
@@ -114,9 +114,10 @@ class BluetoothService {
       const data = encoder.encode(command);
       await this.commandCharacteristic.writeValue(data);
       console.log('Command sent:', command);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error sending command:', error);
-      throw new Error(`Failed to send command: ${error.message}`);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to send command: ${message}`);
     }
   }
 
