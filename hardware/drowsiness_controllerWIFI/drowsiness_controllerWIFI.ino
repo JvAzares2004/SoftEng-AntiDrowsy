@@ -1,6 +1,5 @@
 #include <WiFi.h>
 #include <WebServer.h>
-#include <ArduinoJson.h>
 
 // WiFi Access Point credentials (ESP32 creates its own network)
 const char* ap_ssid = "ESP32-Drowsiness-AP";
@@ -24,8 +23,6 @@ const int PWM_RESOLUTION = 8;    // 8-bit resolution (0-255)
 // Device information
 String deviceName = "ESP32-Drowsiness";
 bool deviceConnected = false;
-unsigned long lastClientPing = 0;
-const unsigned long CLIENT_TIMEOUT = 30000;  // 30 seconds timeout
 
 // Web Server
 WebServer server(80);
@@ -36,88 +33,14 @@ bool vibratorStates[6] = {false, false, false, false, false, false};
 
 // Forward declarations
 void handleCommand(String command);
-String getStatus();
+void updateStatus();
 void activateBuzzer(int intensity, int duration);
 void activateVibrators(int intensity, int duration);
 void setBuzzerIntensity(int intensity);
 void setVibratorIntensity(int intensity);
 
-// HTTP endpoint handlers
-void handleRoot() {
-  String html = "<html><body>";
-  html += "<h1>ESP32 Drowsiness Detection Controller</h1>";
-  html += "<h2>WiFi Mode</h2>";
-  html += "<p>Device: " + deviceName + "</p>";
-  html += "<p>Status: " + (deviceConnected ? "Connected" : "Waiting for connection") + "</p>";
-  html += "<h3>Available Endpoints:</h3>";
-  html += "<ul>";
-  html += "<li>POST /connect - Establish connection</li>";
-  html += "<li>POST /disconnect - Close connection</li>";
-  html += "<li>POST /command - Send commands (body: {\"command\":\"string\"})</li>";
-  html += "<li>GET /status - Get device status</li>";
-  html += "</ul>";
-  html += "</body></html>";
-  server.send(200, "text/html", html);
-}
-
-void handleConnect() {
-  if (!deviceConnected) {
-    deviceConnected = true;
-    lastClientPing = millis();
-    
-    Serial.println("\n=================================");
-    Serial.println("[WiFi] Client connected!");
-    Serial.println("=================================\n");
-    
-    // Turn on GREEN LED, turn off RED LED
-    digitalWrite(GREEN_LED_PIN, HIGH);
-    digitalWrite(RED_LED_PIN, LOW);
-    Serial.println("[LED] Status: GREEN ON (Connected)");
-    
-    server.send(200, "application/json", "{\"status\":\"connected\",\"message\":\"Connection established\"}");
-  } else {
-    lastClientPing = millis();
-    server.send(200, "application/json", "{\"status\":\"already_connected\",\"message\":\"Already connected\"}");
-  }
-}
-
-void handleDisconnect() {
-  if (deviceConnected) {
-    deviceConnected = false;
-    
-    Serial.println("\n=================================");
-    Serial.println("[WiFi] Client disconnected!");
-    Serial.println("=================================\n");
-    
-    // Turn off GREEN LED, turn on RED LED
-    digitalWrite(GREEN_LED_PIN, LOW);
-    digitalWrite(RED_LED_PIN, HIGH);
-    Serial.println("[LED] Status: RED ON (Disconnected)");
-    
-    // Stop all outputs when disconnected
-    for (int i = 0; i < 2; i++) {
-      ledcWrite(BUZZER_PINS[i], 0);
-      buzzerStates[i] = false;
-    }
-    for (int i = 0; i < 6; i++) {
-      ledcWrite(VIBRATOR_PINS[i], 0);
-      vibratorStates[i] = false;
-    }
-    
-    server.send(200, "application/json", "{\"status\":\"disconnected\",\"message\":\"Connection closed\"}");
-  } else {
-    server.send(200, "application/json", "{\"status\":\"not_connected\",\"message\":\"No active connection\"}");
-  }
-}
-
+// HTTP Callback - Handle incoming commands
 void handleCommandEndpoint() {
-  if (!deviceConnected) {
-    server.send(403, "application/json", "{\"error\":\"Not connected. Use /connect first.\"}");
-    return;
-  }
-  
-  lastClientPing = millis();  // Update last ping time
-  
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
     
@@ -126,39 +49,34 @@ void handleCommandEndpoint() {
     Serial.println("=================================");
     Serial.printf("Raw body: %s\n", body.c_str());
     
-    // Parse JSON
-    StaticJsonDocument<200> doc;
-    DeserializationError error = deserializeJson(doc, body);
-    
-    if (error) {
-      Serial.printf("JSON parse error: %s\n", error.c_str());
-      Serial.println("=================================\n");
-      server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
-      return;
+    // Parse JSON manually - extract "command" value  
+    String command = "";
+    int commandIdx = body.indexOf("\"command\"");
+    if (commandIdx >= 0) {
+      int colonIdx = body.indexOf(':', commandIdx);
+      int startQuote = body.indexOf('"', colonIdx);
+      int endQuote = body.indexOf('"', startQuote + 1);
+      if (startQuote >= 0 && endQuote > startQuote) {
+        command = body.substring(startQuote + 1, endQuote);
+      }
     }
     
-    String command = doc["command"].as<String>();
-    Serial.printf("Parsed command: %s\n", command.c_str());
-    Serial.println("---------------------------------");
-    
-    handleCommand(command);
-    
-    Serial.println("=================================\n");
-    
-    server.send(200, "application/json", "{\"status\":\"success\",\"message\":\"Command executed\"}");
+    if (command.length() > 0) {
+      Serial.printf("Parsed command: %s\n", command.c_str());
+      Serial.println("---------------------------------");
+      
+      handleCommand(command);
+      
+      Serial.println("=================================\n");
+      server.send(200, "application/json", "{\"status\":\"success\"}");
+    } else {
+      Serial.println("Failed to parse command");
+      Serial.println("=================================\n");
+      server.send(400, "application/json", "{\"error\":\"Invalid command format\"}");
+    }
   } else {
     server.send(400, "application/json", "{\"error\":\"No command provided\"}");
   }
-}
-
-void handleStatus() {
-  lastClientPing = millis();  // Update last ping time
-  String status = getStatus();
-  server.send(200, "application/json", status);
-}
-
-void handleNotFound() {
-  server.send(404, "application/json", "{\"error\":\"Endpoint not found\"}");
 }
 
 void setup() {
@@ -203,11 +121,11 @@ void setup() {
   // Initialize LED status pins
   pinMode(GREEN_LED_PIN, OUTPUT);
   pinMode(RED_LED_PIN, OUTPUT);
-  digitalWrite(GREEN_LED_PIN, LOW);  // Start with GREEN off
-  digitalWrite(RED_LED_PIN, HIGH);   // Start with RED on (disconnected)
+  digitalWrite(GREEN_LED_PIN, HIGH);  // Start with GREEN on (WiFi AP is always ready)
+  digitalWrite(RED_LED_PIN, LOW);     // Start with RED off
   
   Serial.println("GPIO pins set as OUTPUT");
-  Serial.println("[LED] Initial state: RED ON (waiting for connection)");
+  Serial.println("[LED] Initial state: GREEN ON (WiFi AP ready)");
   
   // Initialize PWM - ESP32 Arduino Core 3.0+ API
   for (int i = 0; i < 2; i++) {
@@ -256,53 +174,26 @@ void setup() {
   }
   Serial.println("=== HARDWARE TEST COMPLETE ===\n");
   
-  // Setup HTTP server endpoints
+  // Initialize HTTP Web Server
   Serial.println("Initializing HTTP Web Server...");
-  server.on("/", HTTP_GET, handleRoot);
-  server.on("/connect", HTTP_POST, handleConnect);
-  server.on("/disconnect", HTTP_POST, handleDisconnect);
   server.on("/command", HTTP_POST, handleCommandEndpoint);
-  server.on("/status", HTTP_GET, handleStatus);
-  server.onNotFound(handleNotFound);
-  
-  // Enable CORS for web access
   server.enableCORS(true);
-  
   server.begin();
   
   Serial.println("\n=================================");
   Serial.println("HTTP Web Server started!");
-  Serial.printf("Server URL: http://%s\n", WiFi.softAPIP().toString().c_str());
+  Serial.printf("Server URL: http://%s/command\n", WiFi.softAPIP().toString().c_str());
   Serial.printf("Device Name: %s\n", deviceName.c_str());
-  Serial.println("Waiting for connections...");
+  Serial.println("Ready for commands...");
   Serial.println("=================================\n");
+  
+  // WiFi AP is always connected
+  deviceConnected = true;
 }
 
 void loop() {
   server.handleClient();
-  
-  // Check for client timeout
-  if (deviceConnected && (millis() - lastClientPing > CLIENT_TIMEOUT)) {
-    Serial.println("\n[WiFi] Client timeout - disconnecting...");
-    deviceConnected = false;
-    
-    // Turn off GREEN LED, turn on RED LED
-    digitalWrite(GREEN_LED_PIN, LOW);
-    digitalWrite(RED_LED_PIN, HIGH);
-    Serial.println("[LED] Status: RED ON (Disconnected)");
-    
-    // Stop all outputs
-    for (int i = 0; i < 2; i++) {
-      ledcWrite(BUZZER_PINS[i], 0);
-      buzzerStates[i] = false;
-    }
-    for (int i = 0; i < 6; i++) {
-      ledcWrite(VIBRATOR_PINS[i], 0);
-      vibratorStates[i] = false;
-    }
-  }
-  
-  delay(10);
+  delay(20);
 }
 
 // Command handler - parses and executes commands from HTTP
@@ -347,6 +238,7 @@ void handleCommand(String command) {
     }
     
     Serial.println("Test completed!");
+    updateStatus();
   }
   else if (command.startsWith("CONTROL:")) {
     int firstColon = command.indexOf(':');
@@ -369,6 +261,8 @@ void handleCommand(String command) {
       setVibratorIntensity(intensity);
       Serial.printf("All vibrators turned %s\n", turnOn ? "ON" : "OFF");
     }
+    
+    updateStatus();
   }
   else if (command.startsWith("ALERT:")) {
     String level = command.substring(6);
@@ -397,6 +291,7 @@ void handleCommand(String command) {
     }
     
     Serial.println("Alert completed!");
+    updateStatus();
   }
   else if (command == "STOP") {
     Serial.println("Stopping all devices...");
@@ -409,17 +304,19 @@ void handleCommand(String command) {
       vibratorStates[i] = false;
     }
     Serial.println("All devices stopped");
+    updateStatus();
   }
   else if (command == "STATUS") {
     Serial.println("Status requested");
+    updateStatus();
   }
   else {
     Serial.printf("Unknown command: %s\n", command.c_str());
   }
 }
 
-// Get status as JSON string
-String getStatus() {
+// Update status
+void updateStatus() {
   bool anyBuzzerOn = false;
   for (int i = 0; i < 2; i++) {
     if (buzzerStates[i]) {
@@ -435,21 +332,9 @@ String getStatus() {
     }
   }
   
-  StaticJsonDocument<200> doc;
-  doc["connected"] = deviceConnected;
-  doc["buzzer"] = anyBuzzerOn ? "on" : "off";
-  doc["vibrator"] = anyVibratorOn ? "on" : "off";
-  doc["device_name"] = deviceName;
-  doc["ip_address"] = WiFi.softAPIP().toString();
-  
-  String output;
-  serializeJson(doc, output);
-  
   Serial.printf("[STATUS] Buzzers=%s, Vibrators=%s\n", 
                 anyBuzzerOn ? "ON" : "OFF", 
                 anyVibratorOn ? "ON" : "OFF");
-  
-  return output;
 }
 
 // Helper functions for device control with PWM intensity
@@ -550,4 +435,3 @@ void setVibratorIntensity(int intensity) {
     }
   }
 }
-  
