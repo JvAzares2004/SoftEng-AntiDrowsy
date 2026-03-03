@@ -1,20 +1,7 @@
-#include <WiFi.h>
-#include <HTTPClient.h>
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
-
-// WiFi Access Point credentials (for ESP32 to create its own network)
-const char* ap_ssid = "ESP32-Drowsiness-AP";
-const char* ap_password = "drowsy123";  // Minimum 8 characters
-
-// Optional: WiFi Station credentials (to connect to existing network)
-const char* sta_ssid = "";  // Leave empty to disable station mode
-const char* sta_password = "";
-
-// Backend server URL (optional - configure if needed)
-const char* serverUrl = "http://192.168.4.2:3000/api/logs";  // Default AP IP is 192.168.4.1
 
 // Pin definitions (adjust based on your wiring)
 // 2 Buzzer pins (will scale like vibrators)
@@ -124,48 +111,8 @@ void setup() {
   delay(1000);
   Serial.println("\n\n=================================");
   Serial.println("ESP32 Drowsiness Detection Controller");
-  Serial.println("WiFi AP + BLE Mode");
+  Serial.println("BLE Mode");
   Serial.println("=================================\n");
-  
-  // Initialize WiFi Access Point
-  Serial.println("Starting WiFi Access Point...");
-  WiFi.mode(WIFI_AP);
-  
-  bool apStarted = WiFi.softAP(ap_ssid, ap_password);
-  
-  if (apStarted) {
-    Serial.println("[WiFi AP] Access Point started successfully!");
-    Serial.printf("Network Name (SSID): %s\n", ap_ssid);
-    Serial.printf("Password: %s\n", ap_password);
-    Serial.printf("IP Address: %s\n", WiFi.softAPIP().toString().c_str());
-    Serial.printf("MAC Address: %s\n", WiFi.softAPmacAddress().c_str());
-    Serial.println("Devices can now connect to this network!");
-  } else {
-    Serial.println("[WiFi AP] Failed to start Access Point!");
-  }
-  
-  // Optional: Also connect to existing WiFi network (Station mode)
-  if (strlen(sta_ssid) > 0) {
-    Serial.println("\nAlso connecting to existing WiFi network...");
-    WiFi.mode(WIFI_AP_STA);  // Both AP and Station
-    WiFi.begin(sta_ssid, sta_password);
-    
-    int wifiAttempts = 0;
-    while (WiFi.status() != WL_CONNECTED && wifiAttempts < 20) {
-      delay(500);
-      Serial.print(".");
-      wifiAttempts++;
-    }
-    
-    if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("\n[WiFi STA] Connected to existing network!");
-      Serial.printf("Station IP: %s\n", WiFi.localIP().toString().c_str());
-    } else {
-      Serial.println("\n[WiFi STA] Connection failed, continuing with AP only...");
-    }
-  }
-  
-  Serial.println();
   
   // CRITICAL: Set pin modes FIRST before PWM
   for (int i = 0; i < 2; i++) {
