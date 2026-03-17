@@ -377,8 +377,12 @@ void loadSavedIntensities() {
   savedBuzzerIntensity = preferences.getUChar("buzzerPct", 100);
   savedVibratorIntensity = preferences.getUChar("vibPct", 100);
 
-  Serial.printf("[SAVED] Buzzer intensity: %d%%\n", savedBuzzerIntensity);
-  Serial.printf("[SAVED] Vibrator intensity: %d%%\n", savedVibratorIntensity);
+  Serial.println("=================================");
+  Serial.println("[STARTUP] Saved Configuration");
+  Serial.println("=================================");
+  Serial.printf("Buzzer Intensity: %d%%\n", savedBuzzerIntensity);
+  Serial.printf("Vibrator Intensity: %d%%\n", savedVibratorIntensity);
+  Serial.println("=================================\n");
 }
 
 void saveIntensitySetting(const String& device, int intensity) {
