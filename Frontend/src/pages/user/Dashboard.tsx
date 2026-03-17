@@ -25,6 +25,7 @@ function Dashboard() {
     // Track testing state and cooldown per device so each can be tested independently
     const [testingDevices, setTestingDevices] = useState<Record<number, boolean>>({})
     const [testCooldowns, setTestCooldowns] = useState<Record<number, number>>({})
+    const [savingDevices, setSavingDevices] = useState<Record<number, boolean>>({})
     const countdownRefs = useRef<Record<number, ReturnType<typeof setInterval> | null>>({})
     const resetRefs = useRef<Record<number, ReturnType<typeof setTimeout> | null>>({})
 
@@ -149,6 +150,35 @@ function Dashboard() {
         }
     }
 
+    const handleSaveVolume = async (index: number) => {
+        const deviceType = volumes[index].type;
+        const intensity = volumes[index].volume;
+
+        if (!isBluetoothConnected) {
+            setBluetoothError('Please connect to ESP32 device first');
+            return;
+        }
+
+        try {
+            setBluetoothError(null);
+            setSavingDevices(prev => ({ ...prev, [index]: true }));
+
+            if (deviceType === "buzzer") {
+                await bluetoothService.saveBuzzerIntensity(intensity);
+            } else if (deviceType === "motor") {
+                await bluetoothService.saveVibratorIntensity(intensity);
+            }
+
+            console.log(`${volumes[index].name} saved at ${intensity}%`);
+        } catch (error: unknown) {
+            console.error('Save error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            setBluetoothError(`Save failed: ${errorMessage}`);
+        } finally {
+            setSavingDevices(prev => ({ ...prev, [index]: false }));
+        }
+    }
+
     useEffect(() => {
         const countdownTimers = countdownRefs.current;
         const resetTimers = resetRefs.current;
@@ -193,14 +223,15 @@ function Dashboard() {
                     console.log('Device status:', status);
                 });
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Bluetooth connection error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             
             // Don't show error if user cancelled the connection
-            if (error.message && error.message.includes('cancelled')) {
+            if (errorMessage.includes('cancelled')) {
                 console.log('User cancelled Bluetooth connection');
             } else {
-                setBluetoothError(error.message);
+                setBluetoothError(errorMessage);
             }
             
             setIsBluetoothConnected(false);
@@ -216,7 +247,7 @@ function Dashboard() {
             setIsBluetoothConnected(false);
             setBluetoothDeviceName(null);
             console.log('Bluetooth disconnected');
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Disconnect error:', error);
         }
     }
@@ -255,7 +286,7 @@ function Dashboard() {
         };
 
         checkBluetoothConnection();
-    }, [])
+    }, [hasPromptedBluetooth])
 
     return (
         <div>
@@ -406,36 +437,54 @@ function Dashboard() {
                                 </div>
                             </div>
                             
-                            {/* Test button - ORIGINAL RED COLOR */}
-                            <button 
-                                onClick={() => testingDevices[index] ? handleStopTest(index) : handleVolumeTest(index)}
-                                disabled={!isBluetoothConnected}
-                                className={`${
-                                    !isBluetoothConnected
-                                        ? 'bg-gray-400 cursor-not-allowed' 
-                                        : testingDevices[index]
-                                        ? 'bg-slate-700 hover:bg-slate-800 hover:scale-105 active:scale-95'
-                                        : 'bg-[#C52233] hover:bg-red-700 hover:scale-105 active:scale-95'
-                                } text-white border rounded-xl flex flex-row items-center justify-center gap-3 p-4 font-bold text-lg shadow-lg hover:shadow-xl transition-all`}
-                                title={
-                                    !isBluetoothConnected 
-                                        ? 'Connect to ESP32 device first' 
-                                        : testingDevices[index] 
-                                        ? 'Stop this device test' 
-                                        : 'Test this device'
-                                }
-                            >
-                                {testingDevices[index] ? (
-                                    <>
-                                        <span>Stop {testCooldowns[index] ?? 0}s</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <PlayIcon className="w-5 h-5" />
-                                        <span>Test</span>
-                                    </>
-                                )}
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <button 
+                                    onClick={() => testingDevices[index] ? handleStopTest(index) : handleVolumeTest(index)}
+                                    disabled={!isBluetoothConnected}
+                                    className={`${
+                                        !isBluetoothConnected
+                                            ? 'bg-gray-400 cursor-not-allowed' 
+                                            : testingDevices[index]
+                                            ? 'bg-slate-700 hover:bg-slate-800 hover:scale-105 active:scale-95'
+                                            : 'bg-[#C52233] hover:bg-red-700 hover:scale-105 active:scale-95'
+                                    } flex-1 text-white border rounded-xl flex flex-row items-center justify-center gap-3 p-4 font-bold text-lg shadow-lg hover:shadow-xl transition-all`}
+                                    title={
+                                        !isBluetoothConnected 
+                                            ? 'Connect to ESP32 device first' 
+                                            : testingDevices[index] 
+                                            ? 'Stop this device test' 
+                                            : 'Test this device'
+                                    }
+                                >
+                                    {testingDevices[index] ? (
+                                        <>
+                                            <span>Stop {testCooldowns[index] ?? 0}s</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <PlayIcon className="w-5 h-5" />
+                                            <span>Test</span>
+                                        </>
+                                    )}
+                                </button>
+
+                                <button
+                                    onClick={() => handleSaveVolume(index)}
+                                    disabled={!isBluetoothConnected || !!savingDevices[index]}
+                                    className={`${
+                                        !isBluetoothConnected || savingDevices[index]
+                                            ? 'bg-gray-400 cursor-not-allowed'
+                                            : 'bg-emerald-600 hover:bg-emerald-700 hover:scale-105 active:scale-95'
+                                    } sm:w-40 text-white border rounded-xl flex items-center justify-center p-4 font-bold text-lg shadow-lg hover:shadow-xl transition-all`}
+                                    title={
+                                        !isBluetoothConnected
+                                            ? 'Connect to ESP32 device first'
+                                            : 'Save this value to the ESP32'
+                                    }
+                                >
+                                    <span>{savingDevices[index] ? 'Saving...' : 'Save'}</span>
+                                </button>
+                            </div>
                         </div>
                     );
                 })}

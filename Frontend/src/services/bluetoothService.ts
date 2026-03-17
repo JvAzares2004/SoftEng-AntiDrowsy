@@ -145,6 +145,20 @@ class BluetoothService {
     await this.sendCommand(`TEST:both:${intensity}`);
   }
 
+  // Save buzzer intensity on the ESP32
+  async saveBuzzerIntensity(intensity: number): Promise<void> {
+    intensity = Math.max(0, Math.min(100, Math.round(intensity)));
+    console.log(`Saving buzzer intensity at ${intensity}%`);
+    await this.sendCommand(`SAVE:buzzer:${intensity}`);
+  }
+
+  // Save vibrator intensity on the ESP32
+  async saveVibratorIntensity(intensity: number): Promise<void> {
+    intensity = Math.max(0, Math.min(100, Math.round(intensity)));
+    console.log(`Saving vibrator intensity at ${intensity}%`);
+    await this.sendCommand(`SAVE:vibrator:${intensity}`);
+  }
+
   // Control buzzer
   async controlBuzzer(state: boolean): Promise<void> {
     await this.sendCommand(`CONTROL:buzzer:${state ? 'on' : 'off'}`);

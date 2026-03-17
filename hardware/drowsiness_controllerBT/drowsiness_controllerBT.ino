@@ -2,6 +2,7 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
+#include <Preferences.h>
 
 // Pin definitions (adjust based on your wiring)
 // 2 Buzzer pins (will scale like vibrators)
@@ -32,6 +33,7 @@ bool oldDeviceConnected = false;
 BLEServer* pServer = NULL;
 BLECharacteristic* pCommandCharacteristic = NULL;
 BLECharacteristic* pStatusCharacteristic = NULL;
+Preferences preferences;
 
 // Control states
 bool buzzerStates[2] = {false, false};
@@ -40,6 +42,8 @@ bool buzzerTimedActive = false;
 bool vibratorTimedActive = false;
 unsigned long buzzerStopAt = 0;
 unsigned long vibratorStopAt = 0;
+int savedBuzzerIntensity = 100;
+int savedVibratorIntensity = 100;
 
 // Forward declarations
 void handleCommand(String command);
@@ -49,6 +53,8 @@ void activateBuzzer(int intensity, int duration);
 void activateVibrators(int intensity, int duration);
 void startBuzzerTest(int intensity, int duration);
 void startVibratorTest(int intensity, int duration);
+void loadSavedIntensities();
+void saveIntensitySetting(const String& device, int intensity);
 void setBuzzerIntensity(int intensity);
 void setVibratorIntensity(int intensity);
 
@@ -120,6 +126,9 @@ void setup() {
   Serial.println("ESP32 Drowsiness Detection Controller");
   Serial.println("BLE Mode");
   Serial.println("=================================\n");
+
+  preferences.begin("drowsy-config", false);
+  loadSavedIntensities();
   
   // CRITICAL: Set pin modes FIRST before PWM
   for (int i = 0; i < 2; i++) {
@@ -311,6 +320,20 @@ void handleCommand(String command) {
     Serial.println("Test started!");
     updateStatus();
   }
+  else if (command.startsWith("SAVE:")) {
+    int firstColon = command.indexOf(':');
+    int secondColon = command.indexOf(':', firstColon + 1);
+
+    String device = command.substring(firstColon + 1, secondColon);
+    int intensity = command.substring(secondColon + 1).toInt();
+
+    if (intensity < 0) intensity = 0;
+    if (intensity > 100) intensity = 100;
+
+    Serial.printf("Saving %s intensity: %d%%\n", device.c_str(), intensity);
+    saveIntensitySetting(device, intensity);
+    Serial.println("Save completed!");
+  }
   else if (command.startsWith("CONTROL:")) {
     int firstColon = command.indexOf(':');
     int secondColon = command.indexOf(':', firstColon + 1);
@@ -391,6 +414,25 @@ void handleCommand(String command) {
   }
   else {
     Serial.printf("Unknown command: %s\n", command.c_str());
+  }
+}
+
+void loadSavedIntensities() {
+  savedBuzzerIntensity = preferences.getUChar("buzzerPct", 100);
+  savedVibratorIntensity = preferences.getUChar("vibPct", 100);
+
+  Serial.printf("[SAVED] Buzzer intensity: %d%%\n", savedBuzzerIntensity);
+  Serial.printf("[SAVED] Vibrator intensity: %d%%\n", savedVibratorIntensity);
+}
+
+void saveIntensitySetting(const String& device, int intensity) {
+  if (device == "buzzer") {
+    savedBuzzerIntensity = intensity;
+    preferences.putUChar("buzzerPct", static_cast<uint8_t>(intensity));
+  }
+  else if (device == "vibrator") {
+    savedVibratorIntensity = intensity;
+    preferences.putUChar("vibPct", static_cast<uint8_t>(intensity));
   }
 }
 

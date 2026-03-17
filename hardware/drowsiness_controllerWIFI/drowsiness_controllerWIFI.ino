@@ -1,5 +1,6 @@
 #include <WiFi.h>
 #include <WebServer.h>
+#include <Preferences.h>
 
 // WiFi Access Point credentials (ESP32 creates its own network)
 const char* ap_ssid = "ESP32-Drowsiness-AP";
@@ -26,6 +27,7 @@ bool deviceConnected = false;
 
 // Web Server
 WebServer server(80);
+Preferences preferences;
 
 // Control states
 bool buzzerStates[2] = {false, false};
@@ -34,6 +36,8 @@ bool buzzerTimedActive = false;
 bool vibratorTimedActive = false;
 unsigned long buzzerStopAt = 0;
 unsigned long vibratorStopAt = 0;
+int savedBuzzerIntensity = 100;
+int savedVibratorIntensity = 100;
 
 // Forward declarations
 void handleCommand(String command);
@@ -43,6 +47,8 @@ void activateBuzzer(int intensity, int duration);
 void activateVibrators(int intensity, int duration);
 void startBuzzerTest(int intensity, int duration);
 void startVibratorTest(int intensity, int duration);
+void loadSavedIntensities();
+void saveIntensitySetting(const String& device, int intensity);
 void setBuzzerIntensity(int intensity);
 void setVibratorIntensity(int intensity);
 
@@ -94,6 +100,9 @@ void setup() {
   Serial.println("ESP32 Drowsiness Detection Controller");
   Serial.println("WiFi AP Mode");
   Serial.println("=================================\n");
+
+  preferences.begin("drowsy-config", false);
+  loadSavedIntensities();
   
   // Initialize WiFi Access Point
   Serial.println("Starting WiFi Access Point...");
@@ -267,6 +276,20 @@ void handleCommand(String command) {
     Serial.println("Test started!");
     updateStatus();
   }
+  else if (command.startsWith("SAVE:")) {
+    int firstColon = command.indexOf(':');
+    int secondColon = command.indexOf(':', firstColon + 1);
+
+    String device = command.substring(firstColon + 1, secondColon);
+    int intensity = command.substring(secondColon + 1).toInt();
+
+    if (intensity < 0) intensity = 0;
+    if (intensity > 100) intensity = 100;
+
+    Serial.printf("Saving %s intensity: %d%%\n", device.c_str(), intensity);
+    saveIntensitySetting(device, intensity);
+    Serial.println("Save completed!");
+  }
   else if (command.startsWith("CONTROL:")) {
     int firstColon = command.indexOf(':');
     int secondColon = command.indexOf(':', firstColon + 1);
@@ -347,6 +370,25 @@ void handleCommand(String command) {
   }
   else {
     Serial.printf("Unknown command: %s\n", command.c_str());
+  }
+}
+
+void loadSavedIntensities() {
+  savedBuzzerIntensity = preferences.getUChar("buzzerPct", 100);
+  savedVibratorIntensity = preferences.getUChar("vibPct", 100);
+
+  Serial.printf("[SAVED] Buzzer intensity: %d%%\n", savedBuzzerIntensity);
+  Serial.printf("[SAVED] Vibrator intensity: %d%%\n", savedVibratorIntensity);
+}
+
+void saveIntensitySetting(const String& device, int intensity) {
+  if (device == "buzzer") {
+    savedBuzzerIntensity = intensity;
+    preferences.putUChar("buzzerPct", static_cast<uint8_t>(intensity));
+  }
+  else if (device == "vibrator") {
+    savedVibratorIntensity = intensity;
+    preferences.putUChar("vibPct", static_cast<uint8_t>(intensity));
   }
 }
 
