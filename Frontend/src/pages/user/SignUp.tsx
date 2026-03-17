@@ -325,8 +325,69 @@ function SignUp() {
         setError('');
         setIsLoading(true);
 
-        // Check if there are any field errors
-        const hasFieldErrors = Object.values(fieldErrors).some(error => error !== '');
+        if (isCheckingEmail || isCheckingContact) {
+            setError('Please wait for email/contact validation to finish');
+            setIsLoading(false);
+            return;
+        }
+
+        const firstName = formData.firstName.trim();
+        const lastName = formData.lastName.trim();
+        const email = formData.email.trim();
+        const contactNumber = formData.contactNumber.trim();
+
+        const nameRegex = /^[A-Za-z\s]+$/;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const phoneRegex = /^[0-9+\-\s()]+$/;
+        const passwordHasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password);
+
+        const submitErrors = {
+            firstName: !firstName
+                ? 'First name is required'
+                : !nameRegex.test(firstName)
+                    ? 'First name should only contain letters'
+                    : '',
+            lastName: !lastName
+                ? 'Last name is required'
+                : !nameRegex.test(lastName)
+                    ? 'Last name should only contain letters'
+                    : '',
+            email: !email
+                ? 'Email is required'
+                : !emailRegex.test(email)
+                    ? 'Please enter a valid email address'
+                    : '',
+            contactNumber: !contactNumber
+                ? 'Contact number is required'
+                : !phoneRegex.test(contactNumber)
+                    ? 'Please enter a valid contact number'
+                    : contactNumber.replace(/[^0-9]/g, '').length < 10
+                        ? 'Contact number must be at least 10 digits'
+                        : '',
+            password: !formData.password
+                ? 'Password is required'
+                : formData.password.length < 6
+                    ? 'Password must be at least 6 characters'
+                    : !/[A-Z]/.test(formData.password)
+                        ? 'Password must contain at least one uppercase letter'
+                        : !/[a-z]/.test(formData.password)
+                            ? 'Password must contain at least one lowercase letter'
+                            : !/[0-9]/.test(formData.password)
+                                ? 'Password must contain at least one number'
+                                : !passwordHasSpecial
+                                    ? 'Password must contain at least one special character'
+                                    : '',
+            confirmPassword: !formData.confirmPassword
+                ? 'Please confirm your password'
+                : formData.password !== formData.confirmPassword
+                    ? 'Passwords do not match'
+                    : '',
+        };
+
+        setFieldErrors(submitErrors);
+
+        // Check submit-time validation first to avoid stale debounced state
+        const hasFieldErrors = Object.values(submitErrors).some(error => error !== '');
         if (hasFieldErrors) {
             setError('Please fix the errors in the form');
             setIsLoading(false);
@@ -337,6 +398,12 @@ function SignUp() {
         if (!formData.firstName || !formData.lastName || !formData.email || 
             !formData.contactNumber || !formData.password || !formData.confirmPassword) {
             setError('Please fill in all fields');
+            setIsLoading(false);
+            return;
+        }
+
+        if (!acceptedTerms) {
+            setError('Please accept the Terms and Conditions');
             setIsLoading(false);
             return;
         }
@@ -362,10 +429,10 @@ function SignUp() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    firstname: formData.firstName,
-                    lastname: formData.lastName,
-                    email: formData.email,
-                    contact_number: formData.contactNumber,
+                    firstname: firstName,
+                    lastname: lastName,
+                    email,
+                    contact_number: contactNumber,
                     password: formData.password,
                 }),
             });

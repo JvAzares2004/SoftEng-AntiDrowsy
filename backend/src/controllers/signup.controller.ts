@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 import { Body, Controller, Post, Req } from '@nestjs/common';
 import { DatabaseService } from '../service/database/database.service';
 import { AuditLoggerService } from '../service/audit-logger/audit-logger.service';
@@ -5,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 import chalk from 'chalk';
 import { EmailService } from '../service/email/email.service';
 import type { Request } from 'express';
+import type { Client } from 'pg';
 
 console.log(chalk.bgGreen.black('[CONTROLLER] SignUp user controller loaded'));
 
@@ -26,11 +28,9 @@ export class SignUpController {
 
   @Post('check-email')
   async checkEmail(@Body() body: { email: string }) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const client = this.dbService.getClient();
+    const client: Client = this.dbService.getClient();
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const result = await client.query(
         'SELECT email FROM user_customers WHERE email = $1',
         [body.email],
@@ -38,10 +38,8 @@ export class SignUpController {
 
       return {
         success: true,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         isAvailable: result.rows.length === 0,
         message:
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           result.rows.length > 0
             ? 'Email already registered'
             : 'Email available',
@@ -54,11 +52,9 @@ export class SignUpController {
 
   @Post('check-contact')
   async checkContact(@Body() body: { contact_number: string }) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const client = this.dbService.getClient();
+    const client: Client = this.dbService.getClient();
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const result = await client.query(
         'SELECT contact_number FROM user_customers WHERE contact_number = $1',
         [body.contact_number],
@@ -66,10 +62,8 @@ export class SignUpController {
 
       return {
         success: true,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         isAvailable: result.rows.length === 0,
         message:
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           result.rows.length > 0
             ? 'Contact number already registered'
             : 'Contact number available',
@@ -85,8 +79,7 @@ export class SignUpController {
 
   @Post('send-verification')
   async sendVerification(@Body() body: { email: string }) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const client = this.dbService.getClient();
+    const client: Client = this.dbService.getClient();
 
     try {
       // Clean up expired codes
@@ -95,13 +88,11 @@ export class SignUpController {
       );
 
       // Check if email already exists
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const existingUser = await client.query(
         'SELECT customer_id FROM user_customers WHERE email = $1',
         [body.email],
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (existingUser.rows.length > 0) {
         return {
           success: false,
@@ -150,18 +141,15 @@ export class SignUpController {
 
   @Post('verify-code')
   async verifyCode(@Body() body: { email: string; code: string }) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const client = this.dbService.getClient();
+    const client: Client = this.dbService.getClient();
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const result = await client.query(
         `SELECT * FROM verification_codes 
          WHERE email = $1 AND code = $2 AND expires_at > CURRENT_TIMESTAMP`,
         [body.email, body.code],
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (result.rows.length === 0) {
         return {
           success: false,
@@ -179,48 +167,79 @@ export class SignUpController {
 
   @Post('signup')
   async signUp(@Body() signUpDto: SignUpDto, @Req() req: Request) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const client = this.dbService.getClient();
+    const client: Client = this.dbService.getClient();
 
     try {
+      const firstname = signUpDto.firstname?.trim();
+      const lastname = signUpDto.lastname?.trim();
+      const email = signUpDto.email?.trim().toLowerCase();
+      const contactNumber = signUpDto.contact_number?.trim();
+
+      if (
+        !firstname ||
+        !lastname ||
+        !email ||
+        !contactNumber ||
+        !signUpDto.password
+      ) {
+        return {
+          success: false,
+          message: 'Please fill in all required fields',
+        };
+      }
+
+      // Check duplicates up front so frontend gets a specific, user-friendly message.
+      const existingEmail = await client.query(
+        'SELECT customer_id FROM user_customers WHERE email = $1',
+        [email],
+      );
+
+      if (existingEmail.rows.length > 0) {
+        return {
+          success: false,
+          message:
+            'This email is already registered. Please use a different email or sign in.',
+        };
+      }
+
+      const existingContact = await client.query(
+        'SELECT customer_id FROM user_customers WHERE contact_number = $1',
+        [contactNumber],
+      );
+
+      if (existingContact.rows.length > 0) {
+        return {
+          success: false,
+          message:
+            'This contact number is already registered. Please use a different number.',
+        };
+      }
+
       // Hash password
       const hashedPassword = await bcrypt.hash(signUpDto.password, 10);
 
       // Insert new user
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const result = await client.query(
         `INSERT INTO user_customers (firstname, lastname, email, contact_number, password)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING customer_id, firstname, lastname, email, contact_number, date_created`,
-        [
-          signUpDto.firstname,
-          signUpDto.lastname,
-          signUpDto.email,
-          signUpDto.contact_number,
-          hashedPassword,
-        ],
+        [firstname, lastname, email, contactNumber, hashedPassword],
       );
 
       // Delete the verification code after successful signup
       await client.query('DELETE FROM verification_codes WHERE email = $1', [
-        signUpDto.email,
+        email,
       ]);
 
-      console.log(
-        chalk.green(`[AUTH] New user registered: ${signUpDto.email}`),
-      );
+      console.log(chalk.green(`[AUTH] New user registered: ${email}`));
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const newUser = result.rows[0];
 
       // Log the signup action
       await this.auditLogger.log({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         userId: newUser.customer_id,
         userType: 'user',
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         userEmail: newUser.email,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         userName: `${newUser.firstname} ${newUser.lastname}`,
         action: 'SIGNUP',
         ipAddress: req.ip,
@@ -230,17 +249,25 @@ export class SignUpController {
       return {
         success: true,
         message: 'Account created successfully',
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         user: newUser,
       };
     } catch (error) {
       console.error(chalk.red('[ERROR] Creating user:'), error);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (error.code === '23505') {
         // Unique violation
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         if (error.constraint?.includes('email')) {
-          return { success: false, message: 'Email already exists' };
+          return {
+            success: false,
+            message:
+              'This email is already registered. Please use a different email or sign in.',
+          };
+        }
+        if (error.constraint?.includes('contact')) {
+          return {
+            success: false,
+            message:
+              'This contact number is already registered. Please use a different number.',
+          };
         }
       }
 
@@ -250,8 +277,7 @@ export class SignUpController {
 
   @Post('forgot-password')
   async forgotPassword(@Body() body: { email: string }) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const client = this.dbService.getClient();
+    const client: Client = this.dbService.getClient();
 
     try {
       // Clean up expired codes
@@ -260,13 +286,11 @@ export class SignUpController {
       );
 
       // Check if email exists in the database
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const existingUser = await client.query(
         'SELECT customer_id FROM user_customers WHERE email = $1',
         [body.email],
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (existingUser.rows.length === 0) {
         return {
           success: false,
@@ -280,13 +304,11 @@ export class SignUpController {
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
       // Check if verification code already exists for this email
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const existingCode = await client.query(
         'SELECT id FROM verification_codes WHERE email = $1',
         [body.email],
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (existingCode.rows.length > 0) {
         // Update existing code
         await client.query(
@@ -318,19 +340,16 @@ export class SignUpController {
   async resetPassword(
     @Body() body: { email: string; code: string; newPassword: string },
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const client = this.dbService.getClient();
+    const client: Client = this.dbService.getClient();
 
     try {
       // Verify the code
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const verificationResult = await client.query(
         `SELECT * FROM verification_codes 
          WHERE email = $1 AND code = $2 AND expires_at > CURRENT_TIMESTAMP`,
         [body.email, body.code],
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (verificationResult.rows.length === 0) {
         return {
           success: false,
@@ -339,13 +358,11 @@ export class SignUpController {
       }
 
       // Check if user exists
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const userResult = await client.query(
         'SELECT customer_id FROM user_customers WHERE email = $1',
         [body.email],
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (userResult.rows.length === 0) {
         return {
           success: false,
@@ -367,7 +384,9 @@ export class SignUpController {
         body.email,
       ]);
 
-      console.log(chalk.green(`[AUTH] Password reset successful for ${body.email}`));
+      console.log(
+        chalk.green(`[AUTH] Password reset successful for ${body.email}`),
+      );
 
       return {
         success: true,
