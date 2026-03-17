@@ -122,6 +122,33 @@ function Dashboard() {
         }
     }
 
+    const handleStopTest = async (index: number) => {
+        const deviceType = volumes[index].type;
+
+        if (!isBluetoothConnected) {
+            setBluetoothError('Please connect to ESP32 device first');
+            return;
+        }
+
+        try {
+            setBluetoothError(null);
+
+            if (deviceType === "buzzer") {
+                await bluetoothService.controlBuzzer(false);
+            } else if (deviceType === "motor") {
+                await bluetoothService.controlVibrator(false);
+            }
+
+            clearDeviceTimers(index);
+            setTestingDevices(prev => ({ ...prev, [index]: false }));
+            setTestCooldowns(prev => ({ ...prev, [index]: 0 }));
+        } catch (error: unknown) {
+            console.error('Stop test error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            setBluetoothError(`Stop failed: ${errorMessage}`);
+        }
+    }
+
     useEffect(() => {
         const countdownTimers = countdownRefs.current;
         const resetTimers = resetRefs.current;
@@ -381,25 +408,26 @@ function Dashboard() {
                             
                             {/* Test button - ORIGINAL RED COLOR */}
                             <button 
-                                onClick={() => handleVolumeTest(index)}
-                                disabled={!isBluetoothConnected || !!testingDevices[index]}
+                                onClick={() => testingDevices[index] ? handleStopTest(index) : handleVolumeTest(index)}
+                                disabled={!isBluetoothConnected}
                                 className={`${
-                                    !isBluetoothConnected || testingDevices[index]
+                                    !isBluetoothConnected
                                         ? 'bg-gray-400 cursor-not-allowed' 
+                                        : testingDevices[index]
+                                        ? 'bg-slate-700 hover:bg-slate-800 hover:scale-105 active:scale-95'
                                         : 'bg-[#C52233] hover:bg-red-700 hover:scale-105 active:scale-95'
                                 } text-white border rounded-xl flex flex-row items-center justify-center gap-3 p-4 font-bold text-lg shadow-lg hover:shadow-xl transition-all`}
                                 title={
                                     !isBluetoothConnected 
                                         ? 'Connect to ESP32 device first' 
                                         : testingDevices[index] 
-                                        ? 'This device is currently testing' 
+                                        ? 'Stop this device test' 
                                         : 'Test this device'
                                 }
                             >
                                 {testingDevices[index] ? (
                                     <>
-                                        <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                                        <span>Testing... {testCooldowns[index] ?? 0}s</span>
+                                        <span>Stop {testCooldowns[index] ?? 0}s</span>
                                     </>
                                 ) : (
                                     <>

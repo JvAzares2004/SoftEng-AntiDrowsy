@@ -30,12 +30,19 @@ WebServer server(80);
 // Control states
 bool buzzerStates[2] = {false, false};
 bool vibratorStates[6] = {false, false, false, false, false, false};
+bool buzzerTimedActive = false;
+bool vibratorTimedActive = false;
+unsigned long buzzerStopAt = 0;
+unsigned long vibratorStopAt = 0;
 
 // Forward declarations
 void handleCommand(String command);
+void processTimedOutputs();
 void updateStatus();
 void activateBuzzer(int intensity, int duration);
 void activateVibrators(int intensity, int duration);
+void startBuzzerTest(int intensity, int duration);
+void startVibratorTest(int intensity, int duration);
 void setBuzzerIntensity(int intensity);
 void setVibratorIntensity(int intensity);
 
@@ -193,7 +200,28 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  processTimedOutputs();
   delay(20);
+}
+
+void processTimedOutputs() {
+  const unsigned long now = millis();
+
+  if (buzzerTimedActive && static_cast<long>(now - buzzerStopAt) >= 0) {
+    buzzerTimedActive = false;
+    buzzerStopAt = 0;
+    setBuzzerIntensity(0);
+    Serial.println("  > Buzzers OFF");
+    updateStatus();
+  }
+
+  if (vibratorTimedActive && static_cast<long>(now - vibratorStopAt) >= 0) {
+    vibratorTimedActive = false;
+    vibratorStopAt = 0;
+    setVibratorIntensity(0);
+    Serial.println("  > Vibrators OFF");
+    updateStatus();
+  }
 }
 
 // Command handler - parses and executes commands from HTTP
@@ -224,20 +252,19 @@ void handleCommand(String command) {
     
     if (testType == "buzzer") {
       Serial.println("Testing BUZZER...");
-      activateBuzzer(intensity, duration);
+      startBuzzerTest(intensity, duration);
     }
     else if (testType == "vibrator") {
       Serial.println("Testing VIBRATORS...");
-      activateVibrators(intensity, duration);
+      startVibratorTest(intensity, duration);
     }
     else if (testType == "both" || testType == "full") {
       Serial.println("Testing ALL devices...");
-      activateBuzzer(intensity, duration);
-      delay(100);
-      activateVibrators(intensity, duration);
+      startBuzzerTest(intensity, duration);
+      startVibratorTest(intensity, duration);
     }
     
-    Serial.println("Test completed!");
+    Serial.println("Test started!");
     updateStatus();
   }
   else if (command.startsWith("CONTROL:")) {
@@ -252,11 +279,15 @@ void handleCommand(String command) {
     Serial.printf("Device: %s, State: %s\n", device.c_str(), turnOn ? "ON" : "OFF");
     
     if (device == "buzzer") {
+      buzzerTimedActive = false;
+      buzzerStopAt = 0;
       int intensity = turnOn ? 100 : 0;
       setBuzzerIntensity(intensity);
       Serial.printf("All buzzers turned %s\n", turnOn ? "ON" : "OFF");
     }
     else if (device == "vibrator") {
+      vibratorTimedActive = false;
+      vibratorStopAt = 0;
       int intensity = turnOn ? 100 : 0;
       setVibratorIntensity(intensity);
       Serial.printf("All vibrators turned %s\n", turnOn ? "ON" : "OFF");
@@ -295,6 +326,10 @@ void handleCommand(String command) {
   }
   else if (command == "STOP") {
     Serial.println("Stopping all devices...");
+    buzzerTimedActive = false;
+    vibratorTimedActive = false;
+    buzzerStopAt = 0;
+    vibratorStopAt = 0;
     for (int i = 0; i < 2; i++) {
       ledcWrite(BUZZER_PINS[i], 0);
       buzzerStates[i] = false;
@@ -352,6 +387,20 @@ void activateVibrators(int intensity, int duration) {
   delay(duration);
   setVibratorIntensity(0);
   Serial.println("  > Vibrators OFF");
+}
+
+void startBuzzerTest(int intensity, int duration) {
+  setBuzzerIntensity(intensity);
+  buzzerTimedActive = true;
+  buzzerStopAt = millis() + static_cast<unsigned long>(duration);
+  Serial.printf("  > Buzzers activated for %d ms\n", duration);
+}
+
+void startVibratorTest(int intensity, int duration) {
+  setVibratorIntensity(intensity);
+  vibratorTimedActive = true;
+  vibratorStopAt = millis() + static_cast<unsigned long>(duration);
+  Serial.printf("  > Vibrators activated for %d ms\n", duration);
 }
 
 // Set buzzer intensity with progressive scaling (same as vibrators but for 2 buzzers)
