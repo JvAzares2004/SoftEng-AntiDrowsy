@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import MotorVolumeIcon from '../../component/svg/MotorVolumeIcon'
 import BuzzerIcon from '../../component/svg/BuzzerIcon'
 import BurgerIcon from '../../component/svg/BurgerIcon'
@@ -22,9 +22,25 @@ function Dashboard() {
     const [isConnecting, setIsConnecting] = useState(false)
     const [hasPromptedBluetooth, setHasPromptedBluetooth] = useState(false)
 
-    // Test cooldown state - tracks which device is testing
-    const [testingDevice, setTestingDevice] = useState<number | null>(null)
-    const [testCooldown, setTestCooldown] = useState<number>(0)
+    // Track testing state and cooldown per device so each can be tested independently
+    const [testingDevices, setTestingDevices] = useState<Record<number, boolean>>({})
+    const [testCooldowns, setTestCooldowns] = useState<Record<number, number>>({})
+    const countdownRefs = useRef<Record<number, ReturnType<typeof setInterval> | null>>({})
+    const resetRefs = useRef<Record<number, ReturnType<typeof setTimeout> | null>>({})
+
+    const clearDeviceTimers = (index: number) => {
+        const countdown = countdownRefs.current[index];
+        if (countdown) {
+            clearInterval(countdown);
+            countdownRefs.current[index] = null;
+        }
+
+        const reset = resetRefs.current[index];
+        if (reset) {
+            clearTimeout(reset);
+            resetRefs.current[index] = null;
+        }
+    }
 
     // Helper function to get dynamic color based on volume
     const getVolumeColor = (volume: number) => {
@@ -54,27 +70,30 @@ function Dashboard() {
             return;
         }
 
-        // Check if already testing
-        if (testingDevice !== null) {
-            console.log('Test already in progress');
+        // Prevent duplicate clicks for the same device while its own test is active
+        if (testingDevices[index]) {
+            console.log('Test already in progress for this device');
             return;
         }
 
         try {
             setBluetoothError(null);
-            setTestingDevice(index);
-            setTestCooldown(3); // 3 second test duration
+            setTestingDevices(prev => ({ ...prev, [index]: true }));
+            setTestCooldowns(prev => ({ ...prev, [index]: 3 })); // 3 second test duration
+            clearDeviceTimers(index);
             
             // Start countdown timer
             const countdownInterval = setInterval(() => {
-                setTestCooldown(prev => {
-                    if (prev <= 1) {
-                        clearInterval(countdownInterval);
-                        return 0;
+                setTestCooldowns(prev => {
+                    const currentCooldown = prev[index] ?? 0;
+                    if (currentCooldown <= 1) {
+                        clearDeviceTimers(index);
+                        return { ...prev, [index]: 0 };
                     }
-                    return prev - 1;
+                    return { ...prev, [index]: currentCooldown - 1 };
                 });
             }, 1000);
+            countdownRefs.current[index] = countdownInterval;
             
             if (deviceType === "buzzer") {
                 await bluetoothService.testBuzzer(intensity);
@@ -84,19 +103,44 @@ function Dashboard() {
             
             console.log(`Test completed successfully`);
             
-            // Clear testing state after completion
-            setTimeout(() => {
-                setTestingDevice(null);
-                setTestCooldown(0);
+            // Keep visual test state for the fixed test window, then reset only this device
+            const resetTimeout = setTimeout(() => {
+                clearDeviceTimers(index);
+                setTestingDevices(prev => ({ ...prev, [index]: false }));
+                setTestCooldowns(prev => ({ ...prev, [index]: 0 }));
             }, 3000);
+            resetRefs.current[index] = resetTimeout;
             
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Test error:', error);
-            setBluetoothError(`Test failed: ${error.message}`);
-            setTestingDevice(null);
-            setTestCooldown(0);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            setBluetoothError(`Test failed: ${errorMessage}`);
+            clearDeviceTimers(index);
+            setTestingDevices(prev => ({ ...prev, [index]: false }));
+            setTestCooldowns(prev => ({ ...prev, [index]: 0 }));
         }
     }
+
+    useEffect(() => {
+        const countdownTimers = countdownRefs.current;
+        const resetTimers = resetRefs.current;
+
+        return () => {
+            Object.keys(countdownTimers).forEach((key) => {
+                const timer = countdownTimers[Number(key)];
+                if (timer) {
+                    clearInterval(timer);
+                }
+            });
+
+            Object.keys(resetTimers).forEach((key) => {
+                const timer = resetTimers[Number(key)];
+                if (timer) {
+                    clearTimeout(timer);
+                }
+            });
+        };
+    }, [])
 
     // Connect to Bluetooth device
     const connectBluetooth = async () => {
@@ -337,24 +381,24 @@ function Dashboard() {
                             {/* Test button - ORIGINAL RED COLOR */}
                             <button 
                                 onClick={() => handleVolumeTest(index)}
-                                disabled={!isBluetoothConnected || testingDevice !== null}
+                                disabled={!isBluetoothConnected || !!testingDevices[index]}
                                 className={`${
-                                    !isBluetoothConnected || testingDevice !== null
+                                    !isBluetoothConnected || testingDevices[index]
                                         ? 'bg-gray-400 cursor-not-allowed' 
                                         : 'bg-[#C52233] hover:bg-red-700 hover:scale-105 active:scale-95'
                                 } text-white border rounded-xl flex flex-row items-center justify-center gap-3 p-4 font-bold text-lg shadow-lg hover:shadow-xl transition-all`}
                                 title={
                                     !isBluetoothConnected 
                                         ? 'Connect to ESP32 device first' 
-                                        : testingDevice !== null 
-                                        ? 'Test in progress' 
+                                        : testingDevices[index] 
+                                        ? 'This device is currently testing' 
                                         : 'Test this device'
                                 }
                             >
-                                {testingDevice === index ? (
+                                {testingDevices[index] ? (
                                     <>
                                         <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                                        <span>Testing... {testCooldown}s</span>
+                                        <span>Testing... {testCooldowns[index] ?? 0}s</span>
                                     </>
                                 ) : (
                                     <>
