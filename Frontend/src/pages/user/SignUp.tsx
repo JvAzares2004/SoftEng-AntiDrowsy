@@ -190,7 +190,7 @@ function SignUp() {
                     setFieldErrors(prev => ({ ...prev, password: 'Password must contain at least one lowercase letter' }));
                 } else if (!/[0-9]/.test(formData.password)) {
                     setFieldErrors(prev => ({ ...prev, password: 'Password must contain at least one number' }));
-                } else if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password)) {
+                } else if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]/.test(formData.password)) {
                     setFieldErrors(prev => ({ ...prev, password: 'Password must contain at least one special character' }));
                 } else {
                     setFieldErrors(prev => ({ ...prev, password: '' }));
@@ -339,7 +339,7 @@ function SignUp() {
         const nameRegex = /^[A-Za-z\s]+$/;
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         const phoneRegex = /^[0-9+\-\s()]+$/;
-        const passwordHasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password);
+        const passwordHasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]/.test(formData.password);
 
         const submitErrors = {
             firstName: !firstName
