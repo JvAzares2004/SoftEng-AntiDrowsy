@@ -42,6 +42,14 @@ function Dashboard() {
         }
     }
 
+    const clearCountdownTimer = (index: number) => {
+        const countdown = countdownRefs.current[index];
+        if (countdown) {
+            clearInterval(countdown);
+            countdownRefs.current[index] = null;
+        }
+    }
+
     // Helper function to get dynamic color based on volume
     const getVolumeColor = (volume: number) => {
         if (volume <= 25) return '#10B981' // Green - Low
@@ -87,7 +95,8 @@ function Dashboard() {
                 setTestCooldowns(prev => {
                     const currentCooldown = prev[index] ?? 0;
                     if (currentCooldown <= 1) {
-                        clearDeviceTimers(index);
+                        clearCountdownTimer(index);
+                        setTestingDevices(currentTesting => ({ ...currentTesting, [index]: false }));
                         return { ...prev, [index]: 0 };
                     }
                     return { ...prev, [index]: currentCooldown - 1 };
@@ -102,14 +111,6 @@ function Dashboard() {
             }
             
             console.log(`Test completed successfully`);
-            
-            // Keep visual test state for the fixed test window, then reset only this device
-            const resetTimeout = setTimeout(() => {
-                clearDeviceTimers(index);
-                setTestingDevices(prev => ({ ...prev, [index]: false }));
-                setTestCooldowns(prev => ({ ...prev, [index]: 0 }));
-            }, 3000);
-            resetRefs.current[index] = resetTimeout;
             
         } catch (error: unknown) {
             console.error('Test error:', error);
