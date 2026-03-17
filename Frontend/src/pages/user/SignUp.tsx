@@ -437,14 +437,26 @@ function SignUp() {
                 }),
             });
 
-            const data = await response.json();
+            const responseText = await response.text();
+            let data: { success?: boolean; message?: string } = {};
+
+            if (responseText) {
+                try {
+                    data = JSON.parse(responseText) as { success?: boolean; message?: string };
+                } catch {
+                    data = { success: false, message: responseText };
+                }
+            }
 
             if (data.success) {
                 // Show success modal instead of navigating immediately
                 setShowSuccessModal(true);
                 setCountdown(5); // Reset countdown
             } else {
-                setError(data.message || 'Failed to create account');
+                const fallbackMessage = response.ok
+                    ? 'Failed to create account'
+                    : `Signup failed (${response.status})`;
+                setError(data.message || fallbackMessage);
             }
         } catch (err) {
             setError('An unexpected error occurred. Please try again.');

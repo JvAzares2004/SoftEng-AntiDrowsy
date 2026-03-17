@@ -253,22 +253,68 @@ export class SignUpController {
       };
     } catch (error) {
       console.error(chalk.red('[ERROR] Creating user:'), error);
-      if (error.code === '23505') {
+      const dbError = error as {
+        code?: string;
+        constraint?: string;
+        detail?: string;
+        message?: string;
+      };
+
+      if (dbError.code === '23505') {
         // Unique violation
-        if (error.constraint?.includes('email')) {
+        if (dbError.constraint?.includes('email')) {
           return {
             success: false,
             message:
               'This email is already registered. Please use a different email or sign in.',
           };
         }
-        if (error.constraint?.includes('contact')) {
+        if (dbError.constraint?.includes('contact')) {
           return {
             success: false,
             message:
               'This contact number is already registered. Please use a different number.',
           };
         }
+
+        return {
+          success: false,
+          message:
+            'Duplicate data detected. Please use different account details.',
+        };
+      }
+
+      if (dbError.code === '23502') {
+        return {
+          success: false,
+          message:
+            'Some required account data is missing. Please complete all fields.',
+        };
+      }
+
+      if (dbError.code === '22001') {
+        return {
+          success: false,
+          message:
+            'One of the provided values is too long. Please shorten your input.',
+        };
+      }
+
+      if (dbError.code === '22P02') {
+        return {
+          success: false,
+          message:
+            'Invalid data format detected. Please review your input and try again.',
+        };
+      }
+
+      const fallbackDetail = dbError.detail || dbError.message;
+
+      if (fallbackDetail) {
+        return {
+          success: false,
+          message: `Unable to create account: ${fallbackDetail}`,
+        };
       }
 
       return { success: false, message: 'Error creating account' };
