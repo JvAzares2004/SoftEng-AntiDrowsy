@@ -21,7 +21,22 @@ import { LogsController } from './controllers/logs.controller';
       envFilePath: '.env',
     }),
   ],
-  controllers: [AppController, SignUpController, AdminSignUpController, LoginController, ProfileController, FeedbackController, DeviceController, LogsController],
-  providers: [AppService, DatabaseService, SupabaseService, EmailService, AuditLoggerService],
+  controllers: [
+    AppController,
+    SignUpController,
+    AdminSignUpController,
+    LoginController,
+    ProfileController,
+    FeedbackController,
+    DeviceController,
+    LogsController,
+  ],
+  providers: [
+    AppService,
+    DatabaseService,
+    SupabaseService,
+    EmailService,
+    AuditLoggerService,
+  ],
 })
 export class AppModule {}

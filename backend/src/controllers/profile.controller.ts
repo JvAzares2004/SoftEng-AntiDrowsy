@@ -181,22 +181,15 @@ export class ProfileController {
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const result = await client.query(`
-        SELECT 
-          c.customer_id,
-          c.firstname,
-          c.lastname,
-          c.email,
-          c.contact_number,
-          c.monthly_triggers,
-          c.successful_triggers,
-          c.failed_triggers,
-          c.date_created,
-          COUNT(t.trigger_id) as total_trigger_records
-        FROM user_customers c
-        LEFT JOIN triggers t ON c.customer_id = t.customer_id
-        GROUP BY c.customer_id, c.firstname, c.lastname, c.email, c.contact_number, 
-                 c.monthly_triggers, c.successful_triggers, c.failed_triggers, c.date_created
-        ORDER BY c.date_created DESC
+        SELECT
+          customer_id,
+          firstname,
+          lastname,
+          email,
+          contact_number,
+          date_created
+        FROM user_customers
+        ORDER BY date_created DESC
       `);
 
       console.log(
