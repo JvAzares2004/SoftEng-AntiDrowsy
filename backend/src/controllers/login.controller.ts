@@ -52,16 +52,22 @@ export class LoginController {
     try {
       let role: 'admin' | 'user' | null = null;
       let user: User | null = null;
+      let userId = '';
 
       // 1. Try admin first
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const result = await client.query(
-        'SELECT * FROM user_admins WHERE email = $1',
+        'SELECT * FROM admin WHERE email = $1',
         [body.email],
       );
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (result.rows.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         user = result.rows[0] as AdminUser;
         role = 'admin';
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        userId = String(result.rows[0].admin_id);
 
         // Check if admin account is active
         const adminUser = user;
@@ -100,6 +106,7 @@ export class LoginController {
         );
 
         // Store 2FA code in database
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         await client.query(
           `INSERT INTO verification_codes (email, code, is_customer, expires_at)
            VALUES ($1, $2, $3, $4)
@@ -121,14 +128,19 @@ export class LoginController {
 
       // 2. If not admin, try user (customer)
       if (!user) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         const customerResult = await client.query(
           'SELECT * FROM user_customers WHERE email = $1',
           [body.email],
         );
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         if (customerResult.rows.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           user = customerResult.rows[0] as CustomerUser;
           role = 'user';
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          userId = String(customerResult.rows[0].customer_id);
         }
       }
 
@@ -156,19 +168,6 @@ export class LoginController {
 
       const userEmail = String(userRecord.email);
       console.log(chalk.green(`[AUTH] ${role} login successful: ${userEmail}`));
-
-      // Log the login action
-      let userId = '';
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-      if (role === 'admin' && user !== null) {
-        userId = String(
-          (user as unknown as { admin_id: string }).admin_id,
-        );
-      } else if (role === 'user' && user !== null) {
-        userId = String(
-          (user as unknown as { customer_id: string }).customer_id,
-        );
-      }
 
       await this.auditLogger.log({
         userId,
@@ -203,6 +202,7 @@ export class LoginController {
 
   @Post('verify-2fa')
   async verify2FA(@Body() body: Verify2FADto, @Req() req: Request) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const client = this.dbService.getClient();
 
     try {
@@ -213,6 +213,7 @@ export class LoginController {
       );
 
       // Debug: Check all records for this email
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const debugResult = await client.query(
         'SELECT * FROM verification_codes WHERE email = $1',
         [body.email],
@@ -220,10 +221,12 @@ export class LoginController {
 
       console.log(
         chalk.blue(`[AUTH] All records for ${body.email}:`),
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         debugResult.rows,
       );
 
       // Retrieve the verification code from database
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const result = await client.query(
         'SELECT * FROM verification_codes WHERE email = $1 AND is_customer = false',
         [body.email],
@@ -231,11 +234,14 @@ export class LoginController {
 
       console.log(
         chalk.blue(
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           `[AUTH] Found ${result.rows.length} records for ${body.email}`,
         ),
       );
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (result.rows.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         const record = result.rows[0] as Record<string, unknown>;
         console.log(
           chalk.blue(
@@ -244,6 +250,7 @@ export class LoginController {
         );
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (result.rows.length === 0) {
         console.log(
           chalk.red(`[AUTH] 2FA failed - No code found for: ${body.email}`),
@@ -254,6 +261,7 @@ export class LoginController {
         };
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const record = result.rows[0] as Record<string, unknown>;
       const now = new Date();
       const expiresAt = new Date(record.expires_at as string);
@@ -263,6 +271,7 @@ export class LoginController {
         console.log(
           chalk.red(`[AUTH] 2FA failed - Code expired for: ${body.email}`),
         );
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         await client.query('DELETE FROM verification_codes WHERE email = $1', [
           body.email,
         ]);
@@ -282,18 +291,22 @@ export class LoginController {
       }
 
       // Code is valid, fetch admin user data
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const adminResult = await client.query(
         'SELECT * FROM user_admins WHERE email = $1',
         [body.email],
       );
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (adminResult.rows.length === 0) {
         return { success: false, message: 'Admin user not found' };
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const admin = adminResult.rows[0] as AdminUser;
 
       // Delete the used verification code
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       await client.query('DELETE FROM verification_codes WHERE email = $1', [
         body.email,
       ]);

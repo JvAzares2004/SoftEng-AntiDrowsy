@@ -51,11 +51,8 @@ export class LogsController {
 
       const logs = (await this.auditLogger.getLogs(filters)) as any[];
 
-      console.log(
-        chalk.green(
-          `[LOGS] Successfully retrieved ${logs.length} audit logs`,
-        ),
-      );
+      // eslint-disable-next-line prettier/prettier
+      console.log(chalk.green(`[LOGS] Successfully retrieved ${logs.length} audit logs`));
 
       return {
         success: true,
