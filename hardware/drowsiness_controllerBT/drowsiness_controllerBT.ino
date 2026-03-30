@@ -15,6 +15,9 @@ const int VIBRATOR_PINS[6] = {26, 27, 14, 12, 13, 15};  // GPIO pins for 6 vibra
 const int GREEN_LED_PIN = 2;    // GPIO pin for GREEN LED (connected)
 const int RED_LED_PIN = 4;      // GPIO pin for RED LED (disconnected)
 
+// GPIO Inter-Board Communication
+const int GPIO_WIFI_TRIGGER = 5; // GPIO pin to signal WiFi ESP32 (send trigger pulses)
+
 // PWM settings for intensity control
 const int PWM_FREQUENCY = 5000;  // 5 KHz
 const int PWM_RESOLUTION = 8;    // 8-bit resolution (0-255)
@@ -57,6 +60,7 @@ void loadSavedIntensities();
 void saveIntensitySetting(const String& device, int intensity);
 void setBuzzerIntensity(int intensity);
 void setVibratorIntensity(int intensity);
+void triggerWiFiCommand();  // Send GPIO signal to WiFi ESP32
 
 // BLE Server Callbacks
 class MyServerCallbacks: public BLEServerCallbacks {
@@ -147,6 +151,10 @@ void setup() {
   digitalWrite(GREEN_LED_PIN, LOW);  // Start with GREEN off
   digitalWrite(RED_LED_PIN, HIGH);   // Start with RED on (disconnected)
   
+  // Initialize GPIO inter-board communication pin
+  pinMode(GPIO_WIFI_TRIGGER, OUTPUT);
+  digitalWrite(GPIO_WIFI_TRIGGER, LOW);  // Start LOW
+  
   Serial.println("GPIO pins set as OUTPUT");
   Serial.println("[LED] Initial state: RED ON (waiting for connection)");
   
@@ -173,6 +181,8 @@ void setup() {
   Serial.println("  - LED Status Indicators:");
   Serial.printf("    - GREEN LED (Connected): GPIO %d\n", GREEN_LED_PIN);
   Serial.printf("    - RED LED (Disconnected): GPIO %d\n", RED_LED_PIN);
+  Serial.println("  - GPIO Inter-Board Communication:");
+  Serial.printf("    - WiFi Trigger: GPIO %d (signal to forward commands to WiFi ESP32)\n", GPIO_WIFI_TRIGGER);
   Serial.printf("  - PWM Frequency: %d Hz\n", PWM_FREQUENCY);
   Serial.printf("  - PWM Resolution: %d-bit (0-255)\n\n", PWM_RESOLUTION);
   
@@ -415,6 +425,9 @@ void handleCommand(String command) {
   else {
     Serial.printf("Unknown command: %s\n", command.c_str());
   }
+  
+  // Trigger WiFi ESP32 to forward the command
+  triggerWiFiCommand();
 }
 
 void loadSavedIntensities() {
@@ -577,4 +590,19 @@ void setVibratorIntensity(int intensity) {
       vibratorStates[i] = false;
     }
   }
+}
+
+// Trigger GPIO signal to WiFi ESP32 to forward the command
+void triggerWiFiCommand() {
+  if (!deviceConnected) {
+    // Only send trigger if BLE is connected
+    return;
+  }
+  
+  // Send a brief pulse signal to GPIO 5 to notify WiFi ESP32
+  digitalWrite(GPIO_WIFI_TRIGGER, HIGH);
+  delayMicroseconds(100);  // 100 microsecond pulse
+  digitalWrite(GPIO_WIFI_TRIGGER, LOW);
+  
+  Serial.println("[GPIO] Forwarding command signal sent to WiFi ESP32 via GPIO " + String(GPIO_WIFI_TRIGGER));
 }

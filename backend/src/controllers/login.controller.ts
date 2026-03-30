@@ -18,6 +18,24 @@ interface Verify2FADto {
   code: string;
 }
 
+interface AdminUser {
+  admin_id: string;
+  email: string;
+  firstname: string;
+  lastname: string;
+  [key: string]: unknown;
+}
+
+interface CustomerUser {
+  customer_id: string;
+  email: string;
+  firstname: string;
+  lastname: string;
+  [key: string]: unknown;
+}
+
+type User = AdminUser | CustomerUser;
+
 @Controller('auth')
 export class LoginController {
   constructor(
@@ -28,24 +46,27 @@ export class LoginController {
 
   @Post('login')
   async login(@Body() body: LoginDto, @Req() req: Request) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const client = this.dbService.getClient();
 
     try {
       let role: 'admin' | 'user' | null = null;
-      let user: any = null;
+      let user: User | null = null;
 
       // 1. Try admin first
-      let result = await client.query(
+      const result = await client.query(
         'SELECT * FROM user_admins WHERE email = $1',
         [body.email],
       );
 
       if (result.rows.length > 0) {
-        user = result.rows[0];
+        user = result.rows[0] as AdminUser;
         role = 'admin';
 
         // Check if admin account is active
-        const status = String(user.status || '').toLowerCase();
+        const adminUser = user;
+        const statusValue = adminUser?.status as string;
+        const status = statusValue ? statusValue.toLowerCase() : '';
         if (status && status !== 'active') {
           return {
             success: false,
@@ -54,10 +75,8 @@ export class LoginController {
         }
 
         // For admins, verify password first then send 2FA code
-        const passwordMatches = await bcrypt.compare(
-          body.password,
-          user.password,
-        );
+        const password = String(adminUser.password);
+        const passwordMatches = await bcrypt.compare(body.password, password);
 
         if (!passwordMatches) {
           console.log(
@@ -69,11 +88,12 @@ export class LoginController {
         }
 
         // Generate and send 2FA code
-        const code = await this.emailService.sendVerification(user.email);
+        const userEmail = String(adminUser.email);
+        const code = await this.emailService.sendVerification(userEmail);
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
         console.log(
-          chalk.blue(`[AUTH] Generated code: ${code} for ${user.email}`),
+          chalk.blue(`[AUTH] Generated code: ${code} for ${userEmail}`),
         );
         console.log(
           chalk.blue(`[AUTH] Code expires at: ${expiresAt.toISOString()}`),
@@ -85,11 +105,11 @@ export class LoginController {
            VALUES ($1, $2, $3, $4)
            ON CONFLICT (email) 
            DO UPDATE SET code = $2, is_customer = $3, expires_at = $4, created_at = CURRENT_TIMESTAMP`,
-          [user.email, code, false, expiresAt],
+          [userEmail, code, false, expiresAt],
         );
 
         console.log(
-          chalk.yellow(`[AUTH] 2FA code sent to admin: ${user.email}`),
+          chalk.yellow(`[AUTH] 2FA code sent to admin: ${userEmail}`),
         );
 
         return {
@@ -101,13 +121,13 @@ export class LoginController {
 
       // 2. If not admin, try user (customer)
       if (!user) {
-        result = await client.query(
+        const customerResult = await client.query(
           'SELECT * FROM user_customers WHERE email = $1',
           [body.email],
         );
 
-        if (result.rows.length > 0) {
-          user = result.rows[0];
+        if (customerResult.rows.length > 0) {
+          user = customerResult.rows[0] as CustomerUser;
           role = 'user';
         }
       }
@@ -121,10 +141,9 @@ export class LoginController {
       }
 
       // Verify password
-      const passwordMatches = await bcrypt.compare(
-        body.password,
-        user.password,
-      );
+      const userRecord = user as unknown as Record<string, unknown>;
+      const password = String(userRecord.password);
+      const passwordMatches = await bcrypt.compare(body.password, password);
 
       if (!passwordMatches) {
         console.log(
@@ -135,16 +154,27 @@ export class LoginController {
         return { success: false, message: 'Invalid email or password' };
       }
 
-      console.log(
-        chalk.green(`[AUTH] ${role} login successful: ${user.email}`),
-      );
+      const userEmail = String(userRecord.email);
+      console.log(chalk.green(`[AUTH] ${role} login successful: ${userEmail}`));
 
       // Log the login action
+      let userId = '';
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+      if (role === 'admin' && user !== null) {
+        userId = String(
+          (user as unknown as { admin_id: string }).admin_id,
+        );
+      } else if (role === 'user' && user !== null) {
+        userId = String(
+          (user as unknown as { customer_id: string }).customer_id,
+        );
+      }
+
       await this.auditLogger.log({
-        userId: user.admin_id || user.customer_id,
+        userId,
         userType: role as 'admin' | 'user',
-        userEmail: user.email,
-        userName: `${user.firstname} ${user.lastname}`,
+        userEmail: String(userRecord.email),
+        userName: `${String(userRecord.firstname)} ${String(userRecord.lastname)}`,
         action: 'LOGIN',
         ipAddress: req.ip,
         userAgent: req.headers['user-agent'],
@@ -154,18 +184,19 @@ export class LoginController {
         success: true,
         role,
         user: {
-          id: user.admin_id || user.customer_id,
-          email: user.email,
-          firstname: user.firstname,
-          lastname: user.lastname,
+          id: userId,
+          email: userRecord.email,
+          firstname: userRecord.firstname,
+          lastname: userRecord.lastname,
         },
       };
     } catch (err) {
       console.error(chalk.red('[ERROR] Login error:'), err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       return {
         success: false,
         message: 'Login error. Please try again.',
-        error: err,
+        error: errorMessage,
       };
     }
   }
@@ -205,10 +236,10 @@ export class LoginController {
       );
 
       if (result.rows.length > 0) {
-        const record = result.rows[0];
+        const record = result.rows[0] as Record<string, unknown>;
         console.log(
           chalk.blue(
-            `[AUTH] Stored code: ${record.code}, is_customer: ${record.is_customer}, expires_at: ${record.expires_at}`,
+            `[AUTH] Stored code: ${String(record.code)}, is_customer: ${String(record.is_customer)}, expires_at: ${String(record.expires_at)}`,
           ),
         );
       }
@@ -223,9 +254,9 @@ export class LoginController {
         };
       }
 
-      const record = result.rows[0];
+      const record = result.rows[0] as Record<string, unknown>;
       const now = new Date();
-      const expiresAt = new Date(record.expires_at);
+      const expiresAt = new Date(record.expires_at as string);
 
       // Check if code has expired
       if (now > expiresAt) {
@@ -260,7 +291,7 @@ export class LoginController {
         return { success: false, message: 'Admin user not found' };
       }
 
-      const admin = adminResult.rows[0];
+      const admin = adminResult.rows[0] as AdminUser;
 
       // Delete the used verification code
       await client.query('DELETE FROM verification_codes WHERE email = $1', [
@@ -296,9 +327,11 @@ export class LoginController {
       };
     } catch (err) {
       console.error(chalk.red('[ERROR] 2FA verification error:'), err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       return {
         success: false,
         message: 'Verification error. Please try again.',
+        error: errorMessage,
       };
     }
   }

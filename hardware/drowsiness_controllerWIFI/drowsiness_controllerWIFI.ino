@@ -17,6 +17,9 @@ const int VIBRATOR_PINS[6] = {26, 27, 14, 12, 13, 15};  // GPIO pins for 6 vibra
 const int GREEN_LED_PIN = 2;    // GPIO pin for GREEN LED (connected)
 const int RED_LED_PIN = 4;      // GPIO pin for RED LED (disconnected)
 
+// GPIO Inter-Board Communication
+const int GPIO_BT_TRIGGER = 5;  // GPIO pin to receive trigger from Bluetooth ESP32
+
 // PWM settings for intensity control
 const int PWM_FREQUENCY = 5000;  // 5 KHz
 const int PWM_RESOLUTION = 8;    // 8-bit resolution (0-255)
@@ -38,6 +41,10 @@ unsigned long buzzerStopAt = 0;
 unsigned long vibratorStopAt = 0;
 int savedBuzzerIntensity = 100;
 int savedVibratorIntensity = 100;
+
+// GPIO and Command forwarding
+bool lastGPIOState = LOW;
+String lastReceivedCommand = "";  // Store last command to execute when triggered
 
 // Forward declarations
 void handleCommand(String command);
@@ -75,6 +82,9 @@ void handleCommandEndpoint() {
     }
     
     if (command.length() > 0) {
+      // Store the command for potential GPIO forwarding to Bluetooth ESP32
+      lastReceivedCommand = command;
+      
       Serial.printf("Parsed command: %s\n", command.c_str());
       Serial.println("---------------------------------");
       
@@ -140,6 +150,10 @@ void setup() {
   digitalWrite(GREEN_LED_PIN, HIGH);  // Start with GREEN on (WiFi AP is always ready)
   digitalWrite(RED_LED_PIN, LOW);     // Start with RED off
   
+  // Initialize GPIO inter-board communication pin (as INPUT to receive from Bluetooth ESP32)
+  pinMode(GPIO_BT_TRIGGER, INPUT);
+  lastGPIOState = digitalRead(GPIO_BT_TRIGGER);
+  
   Serial.println("GPIO pins set as OUTPUT");
   Serial.println("[LED] Initial state: GREEN ON (WiFi AP ready)");
   
@@ -166,6 +180,8 @@ void setup() {
   Serial.println("  - LED Status Indicators:");
   Serial.printf("    - GREEN LED (Connected): GPIO %d\n", GREEN_LED_PIN);
   Serial.printf("    - RED LED (Disconnected): GPIO %d\n", RED_LED_PIN);
+  Serial.println("  - GPIO Inter-Board Communication:");
+  Serial.printf("    - Bluetooth Trigger Input: GPIO %d (receive forwarded commands from Bluetooth ESP32)\n", GPIO_BT_TRIGGER);
   Serial.printf("  - PWM Frequency: %d Hz\n", PWM_FREQUENCY);
   Serial.printf("  - PWM Resolution: %d-bit (0-255)\n\n", PWM_RESOLUTION);
   
@@ -210,6 +226,21 @@ void setup() {
 void loop() {
   server.handleClient();
   processTimedOutputs();
+  
+  // Check for GPIO trigger from Bluetooth ESP32
+  bool currentGPIOState = digitalRead(GPIO_BT_TRIGGER);
+  
+  // Detect rising edge (LOW to HIGH transition)
+  if (currentGPIOState == HIGH && lastGPIOState == LOW) {
+    Serial.println("\n[GPIO] Trigger received from Bluetooth ESP32!");
+    if (lastReceivedCommand.length() > 0) {
+      Serial.printf("[GPIO] Executing forwarded command: %s\n", lastReceivedCommand.c_str());
+      handleCommand(lastReceivedCommand);
+    }
+  }
+  
+  lastGPIOState = currentGPIOState;
+  
   delay(20);
 }
 
