@@ -18,6 +18,11 @@ const int RED_LED_PIN = 4;      // GPIO pin for RED LED (disconnected)
 // GPIO Inter-Board Communication
 const int GPIO_WIFI_TRIGGER = 5; // GPIO pin to signal WiFi ESP32 (send trigger pulses)
 
+// UART Inter-Board Communication (Bluetooth ESP32 -> WiFi ESP32)
+const int UART_TX_PIN = 1;  // TX0
+const int UART_RX_PIN = 3;  // RX0
+const uint32_t UART_BAUD = 115200;
+
 // PWM settings for intensity control
 const int PWM_FREQUENCY = 5000;  // 5 KHz
 const int PWM_RESOLUTION = 8;    // 8-bit resolution (0-255)
@@ -60,7 +65,7 @@ void loadSavedIntensities();
 void saveIntensitySetting(const String& device, int intensity);
 void setBuzzerIntensity(int intensity);
 void setVibratorIntensity(int intensity);
-void triggerWiFiCommand();  // Send GPIO signal to WiFi ESP32
+void triggerWiFiCommand(const String& command);  // Send command + GPIO signal to WiFi ESP32
 
 // BLE Server Callbacks
 class MyServerCallbacks: public BLEServerCallbacks {
@@ -157,6 +162,10 @@ void setup() {
   
   Serial.println("GPIO pins set as OUTPUT");
   Serial.println("[LED] Initial state: RED ON (waiting for connection)");
+
+  // Initialize UART link to WiFi ESP32 for full command forwarding
+  Serial2.begin(UART_BAUD, SERIAL_8N1, UART_RX_PIN, UART_TX_PIN);
+  Serial.printf("[UART] Serial2 initialized at %lu baud (TX=%d, RX=%d)\n", UART_BAUD, UART_TX_PIN, UART_RX_PIN);
   
   // Initialize PWM - ESP32 Arduino Core 3.0+ API
   for (int i = 0; i < 2; i++) {
@@ -426,8 +435,8 @@ void handleCommand(String command) {
     Serial.printf("Unknown command: %s\n", command.c_str());
   }
   
-  // Trigger WiFi ESP32 to forward the command
-  triggerWiFiCommand();
+  // Forward full command to WiFi ESP32, then trigger GPIO pulse
+  triggerWiFiCommand(command);
 }
 
 void loadSavedIntensities() {
@@ -592,16 +601,20 @@ void setVibratorIntensity(int intensity) {
   }
 }
 
-// Trigger GPIO signal to WiFi ESP32 to forward the command
-void triggerWiFiCommand() {
+// Forward command via UART and trigger GPIO pulse for synchronization
+void triggerWiFiCommand(const String& command) {
   if (!deviceConnected) {
     // Only send trigger if BLE is connected
     return;
   }
+
+  // Send the exact command payload to WiFi ESP32 over UART
+  Serial2.println(command);
+  Serial.printf("[UART] Forwarded command to WiFi ESP32: %s\n", command.c_str());
   
   // Send a brief pulse signal to GPIO 5 to notify WiFi ESP32
   digitalWrite(GPIO_WIFI_TRIGGER, HIGH);
-  delayMicroseconds(100);  // 100 microsecond pulse
+  delayMicroseconds(300);  // Slightly longer pulse for robust edge detection
   digitalWrite(GPIO_WIFI_TRIGGER, LOW);
   
   Serial.println("[GPIO] Forwarding command signal sent to WiFi ESP32 via GPIO " + String(GPIO_WIFI_TRIGGER));

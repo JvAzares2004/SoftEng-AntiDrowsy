@@ -20,6 +20,11 @@ const int RED_LED_PIN = 4;    // GPIO pin for RED LED (disconnected)
 // GPIO Inter-Board Communication
 const int GPIO_BT_TRIGGER = 5;  // GPIO pin to receive trigger from Bluetooth ESP32
 
+// UART Inter-Board Communication (Bluetooth ESP32 -> WiFi ESP32)
+const int UART_TX_PIN = 1;  // TX0
+const int UART_RX_PIN = 3;  // RX0
+const uint32_t UART_BAUD = 115200;
+
 // PWM settings for intensity control
 const int PWM_FREQUENCY = 5000;  // 5 KHz
 const int PWM_RESOLUTION = 8;    // 8-bit resolution (0-255)
@@ -45,6 +50,7 @@ int savedVibratorIntensity = 100;
 // GPIO and Command forwarding
 bool lastGPIOState = LOW;
 String lastReceivedCommand = "";  // Store last command to execute when triggered
+unsigned long lastForwardedExecutionAt = 0;
 
 // Forward declarations
 void handleCommand(String command);
@@ -58,6 +64,7 @@ void loadSavedIntensities();
 void saveIntensitySetting(const String& device, int intensity);
 void setBuzzerIntensity(int intensity);
 void setVibratorIntensity(int intensity);
+void readForwardedCommands();
 
 // HTTP Callback - Handle incoming commands
 void handleCommandEndpoint() {
@@ -154,6 +161,10 @@ void setup() {
   pinMode(GPIO_BT_TRIGGER, INPUT);
   lastGPIOState = digitalRead(GPIO_BT_TRIGGER);
 
+  // Initialize UART link from Bluetooth ESP32 for full command payload forwarding
+  Serial2.begin(UART_BAUD, SERIAL_8N1, UART_RX_PIN, UART_TX_PIN);
+  Serial.printf("[UART] Serial2 initialized at %lu baud (RX=%d, TX=%d)\n", UART_BAUD, UART_RX_PIN, UART_TX_PIN);
+
   Serial.println("GPIO pins set as OUTPUT");
   Serial.println("[LED] Initial state: GREEN ON (WiFi AP ready)");
 
@@ -227,21 +238,47 @@ void loop() {
   server.handleClient();
   processTimedOutputs();
 
+  // Capture any command payload forwarded from Bluetooth ESP32
+  readForwardedCommands();
+
   // Check for GPIO trigger from Bluetooth ESP32
   bool currentGPIOState = digitalRead(GPIO_BT_TRIGGER);
 
   // Detect rising edge (LOW to HIGH transition)
   if (currentGPIOState == HIGH && lastGPIOState == LOW) {
     Serial.println("\n[GPIO] Trigger received from Bluetooth ESP32!");
-    if (lastReceivedCommand.length() > 0) {
+    const bool recentlyExecuted = (millis() - lastForwardedExecutionAt) < 200;
+    if (lastReceivedCommand.length() > 0 && !recentlyExecuted) {
       Serial.printf("[GPIO] Executing forwarded command: %s\n", lastReceivedCommand.c_str());
       handleCommand(lastReceivedCommand);
+      lastReceivedCommand = "";
+      lastForwardedExecutionAt = millis();
+    } else if (recentlyExecuted) {
+      Serial.println("[GPIO] Trigger ignored (command already executed from UART)");
+    } else {
+      Serial.println("[GPIO] Trigger received but no forwarded command payload is available");
     }
   }
 
   lastGPIOState = currentGPIOState;
 
   delay(20);
+}
+
+void readForwardedCommands() {
+  while (Serial2.available() > 0) {
+    String command = Serial2.readStringUntil('\n');
+    command.trim();
+
+    if (command.length() > 0) {
+      lastReceivedCommand = command;
+      Serial.printf("[UART] Received forwarded command from Bluetooth ESP32: %s\n", lastReceivedCommand.c_str());
+      handleCommand(lastReceivedCommand);
+      lastForwardedExecutionAt = millis();
+      lastReceivedCommand = "";
+      Serial.println("[UART] Forwarded command executed immediately");
+    }
+  }
 }
 
 void processTimedOutputs() {
