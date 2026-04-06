@@ -57,7 +57,7 @@ export class LoginController {
       // 1. Try admin first
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const result = await client.query(
-        'SELECT * FROM admin WHERE email = $1',
+        'SELECT * FROM user_admins WHERE email = $1',
         [body.email],
       );
 
