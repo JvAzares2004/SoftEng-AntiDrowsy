@@ -65,6 +65,7 @@ void saveIntensitySetting(const String& device, int intensity);
 void setBuzzerIntensity(int intensity);
 void setVibratorIntensity(int intensity);
 void readForwardedCommands();
+void triggerPreferenceAlert();
 
 // HTTP Callback - Handle incoming commands
 void handleCommandEndpoint() {
@@ -305,7 +306,7 @@ void processTimedOutputs() {
 void handleCommand(String command) {
   command.trim();
 
-  // Command format: "TEST:buzzer:100" (intensity 0-100%) or "CONTROL:vibrator:on" or "ALERT:high"
+  // Command format: "TEST:buzzer:100" (intensity 0-100%) or "CONTROL:vibrator:on" or "ALERT"
 
   if (command.startsWith("TEST:")) {
     // Extract test parameters
@@ -380,32 +381,23 @@ void handleCommand(String command) {
     }
 
     updateStatus();
-  } else if (command.startsWith("ALERT:")) {
-    String level = command.substring(6);
-    level.trim();
-
-    Serial.printf("Alert Level: %s\n", level.c_str());
-    Serial.println("---------------------------------");
-
-    if (level == "low") {
-      Serial.println("Low alert: Brief vibration");
-      activateVibrators(50, 500);
-    } else if (level == "medium") {
-      Serial.println("Medium alert: Vibration + Buzzer");
-      activateVibrators(75, 1000);
-      delay(200);
-      activateBuzzer(75, 500);
-    } else if (level == "high") {
-      Serial.println("High alert: Strong pattern");
-      for (int i = 0; i < 3; i++) {
-        activateVibrators(100, 500);
-        activateBuzzer(100, 500);
-        delay(200);
-      }
+  } else if (command == "ALERT" || command.startsWith("ALERT:")) {
+    String level = "";
+    if (command.startsWith("ALERT:")) {
+      level = command.substring(6);
+      level.trim();
     }
 
-    Serial.println("Alert completed!");
-    updateStatus();
+    if (level.length() > 0) {
+      Serial.printf("Alert signal received (payload: %s)\n", level.c_str());
+    } else {
+      Serial.println("Alert signal received (generic drowsy signal)");
+    }
+    Serial.println("---------------------------------");
+
+    triggerPreferenceAlert();
+
+    Serial.println("Preference-based alert started!");
   } else if (command == "STOP") {
     Serial.println("Stopping all devices...");
     buzzerTimedActive = false;
@@ -503,6 +495,32 @@ void startVibratorTest(int intensity, int duration) {
   vibratorTimedActive = true;
   vibratorStopAt = millis() + static_cast<unsigned long>(duration);
   Serial.printf("  > Vibrators activated for %d ms\n", duration);
+}
+
+void triggerPreferenceAlert() {
+  const int duration = 3000;
+  const int buzzerIntensity = constrain(savedBuzzerIntensity, 0, 100);
+  const int vibratorIntensity = constrain(savedVibratorIntensity, 0, 100);
+
+  bool anyOutputEnabled = false;
+
+  Serial.printf("Saved preferences -> Buzzer: %d%%, Vibrator: %d%%\n", buzzerIntensity, vibratorIntensity);
+
+  if (buzzerIntensity > 0) {
+    startBuzzerTest(buzzerIntensity, duration);
+    anyOutputEnabled = true;
+  }
+
+  if (vibratorIntensity > 0) {
+    startVibratorTest(vibratorIntensity, duration);
+    anyOutputEnabled = true;
+  }
+
+  if (!anyOutputEnabled) {
+    Serial.println("Saved preferences are 0% for both outputs. No alert output triggered.");
+  }
+
+  updateStatus();
 }
 
 // Set buzzer intensity with progressive scaling (same as vibrators but for 2 buzzers)
